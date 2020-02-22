@@ -1,8 +1,18 @@
+/*
+ * Author: Joey Tan
+ * Date Created: 2-19-20
+ * Last Edit: 2-22-20, Joey Tan
+ */
+
 #include <stdlib.h>
 #include <math.h>
 
 const float PI = 3.14159;
 const float RAND_UPPER = 3;
+
+//------------------------------------\\
+// Random Number Generation           \\
+//------------------------------------\\
 
 // basically a coin toss
 int randBinary() {
@@ -21,6 +31,10 @@ float randomFloat() {
     if (randBinary()) return -1*output;
     return output;
 }
+
+//------------------------------------\\
+// Statistics                         \\
+//------------------------------------\\
 
 float normal(float x) {
     const float mean = 0;

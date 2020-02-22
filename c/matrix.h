@@ -1,3 +1,9 @@
+/*
+ * Author: Joey Tan
+ * Date Created: 2-18-20
+ * Last Edit: 2-22-20, Joey Tan
+ */
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
@@ -8,6 +14,12 @@ typedef struct {
     int rows;
     int cols;
 } Matrix;
+
+// TODO: Organizating this file
+
+//----------------------------------------\\
+// Initialization                         \\
+//----------------------------------------\\
 
 void initMat(Matrix* mat, int r, int c) {
     mat->ptr = malloc(sizeof mat->ptr * r * c);
@@ -29,6 +41,10 @@ void initRandom(Matrix* mat, int r, int c) {
             mat->ptr[i*mat->cols+j] = randomFloat();
     }
 }
+
+// uses normally distributed values
+//void initSparse(Matrix* mat, int r, int c, float density) {
+
 
 // initializes a matrix using normally distributed random values
 void initRandomNormal(Matrix* mat, int r, int c) {

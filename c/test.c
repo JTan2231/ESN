@@ -2,13 +2,16 @@
 #include <stdio.h>
 #include <time.h>
 #include "matrix.h"
+#include "map.h"
 
 int main() {
-    srand(time(0));
+    Parent p;
+    initParent(&p, 5);
+    parentPrint(&p);
+    parentAdd(&p, 3);
+    parentAdd(&p, 6);
+    parentAdd(&p, 9);
+    parentPrint(&p);
 
-    Matrix m1;
-    initRandomNormal(&m1, 7, 7);
-
-    printMat(&m1);
-    printf("\n");
+    return 0;
 }

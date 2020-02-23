@@ -1,9 +1,11 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-19-20
- * Last Edit: 2-22-20, Joey Tan
+ * Last Edit: 2-23-20, Joey Tan
  */
 
+#ifndef GENERATION
+#define GENERATION
 #include <stdlib.h>
 #include <math.h>
 
@@ -22,6 +24,17 @@ int randBinary() {
     do {
         retval = rand() / divisor;
     } while (retval > 1);
+
+    return retval;
+}
+
+int randRange(int max) {
+    const int divisor = RAND_MAX/(max);
+    int retval;
+
+    do {
+        retval = rand() / divisor;
+    } while (retval > max);
 
     return retval;
 }
@@ -45,7 +58,7 @@ float normal(float x) {
 
 // generate value from a normal distribution
 // see Marsaglia Polar Method
-float marsagliaNormal() {
+float marsagliaPolar() {
     float U, V, S;
     do {
         U = (float)rand()/(float)(RAND_MAX);
@@ -58,3 +71,4 @@ float marsagliaNormal() {
     return U * sqrtf(-2*logf(S)/S);
 }
 
+#endif

@@ -1,13 +1,16 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-18-20
- * Last Edit: 2-22-20, Joey Tan
+ * Last Edit: 2-23-20, Joey Tan
  */
 
+#ifndef MATRIX
+#define MATRIX
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 #include "generation.h"
+#include "map.h"
 
 typedef struct {
     float* ptr;
@@ -43,7 +46,38 @@ void initRandom(Matrix* mat, int r, int c) {
 }
 
 // uses normally distributed values
-//void initSparse(Matrix* mat, int r, int c, float density) {
+// uses ParentArray as a list of columns
+// each nested Parent acting as a unique column
+// with a list of rows in which there is a value
+// for each row where there is a value in the sparse matrix
+// eliminates unnecessary storage of zeros
+void initSparse(ParentArray* mat, int r, int c, float density) {
+    mat->array = malloc(sizeof mat->array);
+    mat->arraySize = 1;
+    
+    int count = 0;
+    int total = (int)(r*c*density);
+
+    while (count < total) {
+        int column = randRange(c);
+        int in = parentArrayIn(mat, column);
+        if (in+1 != mat->arraySize) {
+            int row = randRange(r);
+            int in2 = parentInFirst(&(mat->array[in]), row);
+            if (in2+1 == mat->array[in].arraySize) {
+                parentAdd(&(mat->array[in]), row, marsagliaPolar());
+                count++;
+            }
+        }
+        else {
+            Parent p;
+            initParent(&p, column);
+            parentAdd(&p, randRange(r), marsagliaPolar());
+            parentArrayAdd(mat, &p);
+            count++;
+        }
+    }
+}
 
 
 // initializes a matrix using normally distributed random values
@@ -54,7 +88,7 @@ void initRandomNormal(Matrix* mat, int r, int c) {
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
-            mat->ptr[i*mat->cols+j] = marsagliaNormal();
+            mat->ptr[i*mat->cols+j] = marsagliaPolar();
     }
 }
 
@@ -108,3 +142,4 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     }
 }
 
+#endif

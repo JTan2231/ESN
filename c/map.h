@@ -1,13 +1,20 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-22-20
- * Last Edit: 2-22-20, Joey Tan
+ * Last Edit: 2-23-20, Joey Tan
  */ 
 
+#ifndef MAP
+#define MAP
 #include <stdio.h>
 
 typedef struct {
-    int* array;
+    int first;
+    float second;
+} Pair;
+
+typedef struct {
+    Pair* array;
     int value;
     int arraySize;
 } Parent;
@@ -23,9 +30,9 @@ typedef struct {
 
 void initParent(Parent* p, int value) {
     p->array = malloc(sizeof p->array);
-    p->array[0] = -1;
+    p->array[0].first = -1;
     p->value = value;
-    p->arraySize = 1;
+    p->arraySize = 0;
 }
 
 void initParentArray(ParentArray* pa) {
@@ -54,17 +61,18 @@ void cleanParentArray(ParentArray* pa) {
 //------------------------------------\\
 
 // add a value to the parent's child array
-void parentAdd(Parent* p, int value) {
-    p->array[p->arraySize-1] = value;
+void parentAdd(Parent* p, int first, float second) {
+    p->array[p->arraySize].first = first;
+    p->array[p->arraySize].second = second;
     p->arraySize++;
 
     // expand array
-    int* newArray = malloc(sizeof p->array * p->arraySize);
+    Pair* newArray = malloc(sizeof(Pair) * p->arraySize);
     for (int i = 0; i < p->arraySize; i++)
         newArray[i] = p->array[i];
     free(p->array);
     p->array = newArray;
-    p->array[p->arraySize] = -1;
+    //p->array[p->arraySize].first = 0;
 }
 
 void parentArrayAdd(ParentArray* pa, Parent* p) {
@@ -72,7 +80,7 @@ void parentArrayAdd(ParentArray* pa, Parent* p) {
     pa->arraySize++;
 
     // expand array
-    Parent* newArray = malloc(sizeof pa->array * pa->arraySize);
+    Parent* newArray = malloc(sizeof(Parent) * pa->arraySize);
     for (int i = 0; i < pa->arraySize; i++)
         newArray[i] = pa->array[i];
     free(pa->array);
@@ -84,9 +92,9 @@ void parentArrayAdd(ParentArray* pa, Parent* p) {
 //------------------------------------\\
 
 void parentPrint(Parent* p) {
-    printf("[ ");
+    printf("[ {value: %d} ", p->value);
     for (int i = 0; i < p->arraySize; i++)
-        printf("%d ", p->array[i]);
+        printf("First, Second: %d, %f ", p->array[i].first, p->array[i].second);
     printf("]\n");
 }
 
@@ -99,3 +107,35 @@ void parentArrayPrint(ParentArray* pa) {
     }
     printf("]\n");
 }
+
+int parentArrayIn(ParentArray* pa, int value) {
+    int output = 0;
+    for (int i = 0; i < pa->arraySize && pa->array[i].value != value; i++)
+        output = i;
+    return output;
+}
+
+int parentInFirst(Parent* p, int value) {
+    int output = 0;
+    for (int i = 0; i < p->arraySize && p->array[i].first != value; i++)
+        output = i;
+    return output;
+}
+
+int parentInSecond(Parent* p, int value) {
+    int output = 0;
+    for (int i = 0; i < p->arraySize && p->array[i].second != value; i++)
+        output = i;
+    return output;
+}
+
+int parentIn(Parent* p, int first, int second) {
+    int output = 0;
+    for (int i = 0;
+         i < p->arraySize && p->array[i].first != first && p->array[i].second != second;
+         i++)
+        output = i;
+    return output;
+}
+
+#endif

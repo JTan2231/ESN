@@ -18,7 +18,7 @@ typedef struct {
     int cols;
 } Matrix;
 
-// TODO: Organizating this file
+// TODO: Organizing this file
 
 //----------------------------------------\\
 // Initialization                         \\

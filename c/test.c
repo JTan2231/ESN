@@ -22,6 +22,15 @@ int main() {
 
     ParentArray pa;
     initSparse(&pa, 10, 10, 0.1);
+    Matrix m;
+    Matrix out;
+    initRandomNormal(&m, 10, 10);
+    initMat(&out, 10, 10);
+    parentArrayPrint(&pa);
+    printMat(&m);
+    sparseDotSecond(&m, &pa, &out);
+    printf("out:\n");
+    printMat(&out);
     
     /*
     for (int i = 0; i < 10; i++) {
@@ -36,7 +45,5 @@ int main() {
         parentArrayPrint(&pa);
     }*/
     
-    parentArrayPrint(&pa);
-
     return 0;
 }

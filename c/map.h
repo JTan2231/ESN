@@ -22,6 +22,8 @@ typedef struct {
 typedef struct {
     Parent* array;
     int arraySize;
+    int cols;
+    int rows;
 } ParentArray;
 
 //------------------------------------\\
@@ -37,7 +39,7 @@ void initParent(Parent* p, int value) {
 
 void initParentArray(ParentArray* pa) {
     pa->array = malloc(sizeof pa->array);
-    pa->arraySize = 1;
+    pa->arraySize = 0;
 }
 
 //------------------------------------\\
@@ -62,29 +64,69 @@ void cleanParentArray(ParentArray* pa) {
 
 // add a value to the parent's child array
 void parentAdd(Parent* p, int first, float second) {
-    p->array[p->arraySize].first = first;
-    p->array[p->arraySize].second = second;
-    p->arraySize++;
+    if (p->arraySize == 0) {
+        p->array = calloc(2, sizeof(Pair));
+        p->array[0].first = first;
+        p->array[0].second = second;
+        p->arraySize++;
+    }
+    else {
+        int index = p->arraySize;
+        for (int i = 0; i < p->arraySize; i++) {
+            if (first < p->array[i].first) {
+                index = i;
+                break;
+            }
+        }
 
-    // expand array
-    Pair* newArray = malloc(sizeof(Pair) * p->arraySize);
-    for (int i = 0; i < p->arraySize; i++)
-        newArray[i] = p->array[i];
-    free(p->array);
-    p->array = newArray;
-    //p->array[p->arraySize].first = 0;
+        p->arraySize++;
+        Pair* newArray = calloc(p->arraySize, sizeof(Pair));
+
+        for (int i = 0; i < index; i++)
+            newArray[i] = p->array[i];
+        
+        newArray[index].first = first;
+        newArray[index].second = second;
+        
+        for(int i = index+1; i < p->arraySize; i++) {
+            newArray[i] = p->array[i-1];
+        }
+
+        free(p->array);
+        p->array = newArray;
+    }
 }
 
 void parentArrayAdd(ParentArray* pa, Parent* p) {
-    pa->array[pa->arraySize-1] = *p;
-    pa->arraySize++;
+    if (pa->arraySize == 1) {
+        pa->array = calloc(2, sizeof(Parent));
+        pa->array[0] = *p;
+        pa->arraySize++;
+    }
+    else {
+        int index = pa->arraySize-1;
+        for (int i = 0; i < pa->arraySize; i++) {
+            if (p->value < pa->array[i].value) {
+                index = i;
+                break;
+            }
+        }
 
-    // expand array
-    Parent* newArray = malloc(sizeof(Parent) * pa->arraySize);
-    for (int i = 0; i < pa->arraySize; i++)
-        newArray[i] = pa->array[i];
-    free(pa->array);
-    pa->array = newArray;
+        pa->arraySize++;
+        Parent* newArray = calloc(pa->arraySize, sizeof(Parent));
+
+        for (int i = 0; i < index; i++)
+            newArray[i] = pa->array[i];
+        
+        newArray[index] = *p;
+        
+        for(int i = index+1; i < pa->arraySize; i++) {
+            newArray[i] = pa->array[i-1];
+        }
+
+        free(pa->array);
+        pa->array = newArray;
+    }
 }
 
 //------------------------------------\\
@@ -100,13 +142,15 @@ void parentPrint(Parent* p) {
 
 void parentArrayPrint(ParentArray* pa) {
     printf("[ \n");
-    for (int i = 0; i < pa->arraySize; i++) {
+    for (int i = 0; i < pa->arraySize-1; i++) {
         printf("    ");
         parentPrint(&(pa->array[i]));
         printf("\n");
     }
     printf("]\n");
 }
+
+// these four return indices
 
 int parentArrayIn(ParentArray* pa, int value) {
     int output = 0;
@@ -117,8 +161,8 @@ int parentArrayIn(ParentArray* pa, int value) {
 
 int parentInFirst(Parent* p, int value) {
     int output = 0;
-    for (int i = 0; i < p->arraySize && p->array[i].first != value; i++)
-        output = i;
+    for (int i = 0; i < p->arraySize; i++)
+        if (p->array[i].first == value) return ++output;
     return output;
 }
 

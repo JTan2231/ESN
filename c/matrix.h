@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <assert.h>
 #include "generation.h"
 #include "map.h"
 
@@ -20,7 +21,7 @@ typedef struct {
 
 // TODO: Organizing this file
 // TODO: Eigenvalues
-// TODO: Sparse matrix multiplication
+// TODO: Formatting - sparseDotPartial looks like a disaster
 
 //----------------------------------------\\
 // Initialization                         \\
@@ -56,6 +57,8 @@ void initRandom(Matrix* mat, int r, int c) {
 void initSparse(ParentArray* mat, int r, int c, float density) {
     mat->array = malloc(sizeof mat->array);
     mat->arraySize = 1;
+    mat->rows = r;
+    mat->cols = c;
     
     int count = 0;
     int total = (int)(r*c*density);
@@ -66,7 +69,7 @@ void initSparse(ParentArray* mat, int r, int c, float density) {
         if (in+1 != mat->arraySize) {
             int row = randRange(r);
             int in2 = parentInFirst(&(mat->array[in]), row);
-            if (in2+1 == mat->array[in].arraySize) {
+            if (in2 == 0) {
                 parentAdd(&(mat->array[in]), row, marsagliaPolar());
                 count++;
             }
@@ -80,7 +83,6 @@ void initSparse(ParentArray* mat, int r, int c, float density) {
         }
     }
 }
-
 
 // initializes a matrix using normally distributed random values
 void initRandomNormal(Matrix* mat, int r, int c) {
@@ -96,10 +98,7 @@ void initRandomNormal(Matrix* mat, int r, int c) {
 
 // shapes must be correct before use
 void initTranspose(Matrix* mat, Matrix* matT) {
-    if (matT->rows != mat->cols || matT->cols != mat->rows) {
-        printf("ERROR: Matrix shapes incompatible. Transpose incomplete.\n");
-        return;
-    }
+    assert(matT->rows != mat->cols || matT->cols != mat->rows);
 
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < mat->cols; j++)
@@ -133,15 +132,38 @@ float matDotPartial(Matrix* m1, int row, Matrix* m2, int col) {
 }
 
 void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
-    if (m3->rows != m1->rows || m3->cols != m2->cols || m1->cols != m2->rows) {
-        printf("ERROR: Matrix shapes incompatible. Required shapes (rows, columns): (M, N) x (N, P) -> (M, P)\n");
-        return;
-    }
+    assert(m3->rows != m1->rows || m3->cols != m2->cols || m1->cols != m2->rows);
 
     for (int i = 0; i < m1->rows; i++) {
         for (int j = 0; j < m2->cols; j++)
             m3->ptr[i*m3->cols+j] = matDotPartial(m1, i, m2, j);
     }
 }
+
+float sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
+    float output = 0;
+    for (int i = 0; i < sparse->array[col].arraySize; i++)
+        output += mat->ptr[row*mat->cols+sparse->array[col].array[i].first] * sparse->array[col].array[i].second;
+
+    return output;
+}
+
+void sparseDotSecond(Matrix* mat, ParentArray* sparse, Matrix* out) {
+    assert(out->rows == mat->rows || out->cols == sparse->cols || mat->cols == sparse->rows);
+    
+    int sparseIndex = 0;
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < sparse->arraySize; j++)
+            out->ptr[i*out->cols+sparse->array[j].value] = sparseDotPartial(mat, i, sparse, j);
+    }
+}
+
+
+//--------------------------------------------------------\\
+// Manipulation                                           \\
+//--------------------------------------------------------\\
+
+// uses power iteration to find the max eigenvalue
+//float maxEigen(Matrix
 
 #endif

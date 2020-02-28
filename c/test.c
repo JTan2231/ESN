@@ -20,7 +20,32 @@ int main() {
         parentPrint(&p);
     }*/
 
-    ParentArray pa;
+    ParentArray mat;
+    initSparse(&mat, 10, 10, 0.1);
+    Matrix vec;
+    initRandom(&vec, 1, 10);
+    Matrix out;
+    initMat(&out, 1, 10);
+
+    printf("Sparse: \n");
+    parentArrayPrint(&mat);
+    printf("vec: \n");
+    printMat(&vec);
+
+    /*sparseDotFirst(&mat, &vec, &out);
+
+    printf("out: \n");
+    printMat(&out);*/
+
+    eigenVector(&mat, &vec, 10);
+
+    printf("The eigenvector of \n");
+    parentArrayPrint(&mat);
+    printf("is \n");
+    printMat(&vec);
+    
+
+    /*ParentArray pa;
     initSparse(&pa, 10, 10, 0.1);
     Matrix m;
     Matrix out;
@@ -30,7 +55,7 @@ int main() {
     printMat(&m);
     sparseDotSecond(&m, &pa, &out);
     printf("out:\n");
-    printMat(&out);
+    printMat(&out);*/
     
     /*
     for (int i = 0; i < 10; i++) {

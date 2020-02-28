@@ -24,6 +24,7 @@ typedef struct {
 // TODO: Organizing this file
 // TODO: Eigenvalues
 // TODO: Formatting - sparseDotPartial looks like a disaster
+// TODO: Verification of algorithms
 
 //----------------------------------------\\
 // Initialization                         \\
@@ -170,15 +171,12 @@ float sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
     return output;
 }
 
-// TODO: NEEDS FIXED -- CHECK WHEN ABLE
 void sparseDotFirst(ParentArray* sparse, Matrix* mat, Matrix* out) {
     assert(out->rows == mat->rows || out->cols == sparse->cols || mat->cols == sparse->rows);
 
     for (int i = 0; i < sparse->arraySize; i++) {
-        for (int j = 0; j < sparse->array[i].arraySize; j++) {
-            printf("operands: %f, %f\n", sparse->array[i].array[j].second, mat->ptr[sparse->array[i].value]);
+        for (int j = 0; j < sparse->array[i].arraySize; j++)
             out->ptr[sparse->array[i].value] += sparse->array[i].array[j].second * mat->ptr[sparse->array[i].value];
-        }
     }
 }
 
@@ -235,11 +233,8 @@ void eigenVector(ParentArray* mat, Matrix* eigenVec, int iterations) {
     Matrix dot;
     for (int i = 0; i < iterations; i++) {
         initMat(&dot, 1, eigenVec->cols);
-        printMat(eigenVec);
         sparseDotFirst(mat, eigenVec, &dot);
-        printMat(&dot);
-        float mag = magnitude(&dot);
-        normalizeOut(&dot, eigenVec, mag);
+        normalizeOut(&dot, eigenVec, magnitude(&dot));
         clean(&dot);
     }
 }

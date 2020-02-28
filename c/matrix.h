@@ -170,29 +170,14 @@ float sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
     return output;
 }
 
-// meant primarily for eigenvector calculation
-float sparseDotPartialSecond(Matrix* mat, int col, ParentArray* sparse, int row) {
-    float output = 0;
-    for (int i = 0; i < mat->cols; i++) {
-        if (!parentArrayIn(sparse, i)) {
-        // if this has a valid row
-        if (parentInSecond(&(sparse->array[i]), row) != sparse->array[i].arraySize) {
-            output += mat->ptr[row] * sparse->array[i].array[row].second;
-        }
-    }
-    }
-    
-    return output;
-}
-
-// TODO: NEEDS FIXED
+// TODO: NEEDS FIXED -- CHECK WHEN ABLE
 void sparseDotFirst(ParentArray* sparse, Matrix* mat, Matrix* out) {
     assert(out->rows == mat->rows || out->cols == sparse->cols || mat->cols == sparse->rows);
 
     for (int i = 0; i < sparse->arraySize; i++) {
         for (int j = 0; j < sparse->array[i].arraySize; j++) {
             printf("operands: %f, %f\n", sparse->array[i].array[j].second, mat->ptr[j]);
-            out->ptr[sparse->array[i].value] += sparse->array[i].array[j].second * mat->ptr[j];
+            out->ptr[i] += sparse->array[i].array[j].second * mat->ptr[i];
         }
     }
 }
@@ -254,12 +239,6 @@ void eigenVector(ParentArray* mat, Matrix* eigenVec, int iterations) {
         sparseDotFirst(mat, eigenVec, &dot);
         printMat(&dot);
         float mag = magnitude(&dot);
-        /*if (mag == 0) {
-            i = -1;
-            clean(eigenVec);
-            initSparse(mat, mat->rows, mat->cols, 0.1);
-            continue;
-        }*/
         normalizeOut(&dot, eigenVec, mag);
         clean(&dot);
     }

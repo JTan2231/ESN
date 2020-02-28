@@ -176,8 +176,8 @@ void sparseDotFirst(ParentArray* sparse, Matrix* mat, Matrix* out) {
 
     for (int i = 0; i < sparse->arraySize; i++) {
         for (int j = 0; j < sparse->array[i].arraySize; j++) {
-            printf("operands: %f, %f\n", sparse->array[i].array[j].second, mat->ptr[j]);
-            out->ptr[i] += sparse->array[i].array[j].second * mat->ptr[i];
+            printf("operands: %f, %f\n", sparse->array[i].array[j].second, mat->ptr[sparse->array[i].value]);
+            out->ptr[sparse->array[i].value] += sparse->array[i].array[j].second * mat->ptr[sparse->array[i].value];
         }
     }
 }

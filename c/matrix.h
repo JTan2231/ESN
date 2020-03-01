@@ -13,18 +13,16 @@
 #include "generation.h"
 #include "map.h"
 
-#define MACHEP 0.0000000596
-
 typedef struct {
-    float* ptr;
+    double* ptr;
     int rows;
     int cols;
 } Matrix;
 
 // TODO: Organizing this file
-// TODO: Eigenvalues
-// TODO: Formatting - sparseDotPartial looks like a disaster
-// TODO: Verification of algorithms
+// TODO: Matrix inverse
+// TODO: Tikhonov Regularization
+// TODO: Vector structure and functions
 
 //----------------------------------------\\
 // Initialization                         \\
@@ -36,29 +34,29 @@ void initMat(Matrix* mat, int r, int c) {
     mat->cols = c;
 }
 
-void clean(Matrix* mat) {
+void cleanMat(Matrix* mat) {
     free(mat->ptr);
 }
 
 void initRandom(Matrix* mat, int r, int c) {
-    mat->ptr = malloc(sizeof mat->ptr * r * c);
+    mat->ptr = calloc(r * c, sizeof mat->ptr);
     mat->rows = r;
     mat->cols = c;
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
-            mat->ptr[i*mat->cols+j] = randomFloat();
+            mat->ptr[i*mat->cols+j] = randomDouble();
     }
 }
 
-void initRandomLimit(Matrix* mat, int r, int c) {
-    mat->ptr = malloc(sizeof mat->ptr * r * c);
+void initRandomRange(Matrix* mat, int r, int c, int range) {
+    mat->ptr = calloc(r * c, sizeof mat->ptr);
     mat->rows = r;
     mat->cols = c;
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
-            mat->ptr[i*mat->cols+j] = randRange(50);
+            mat->ptr[i*mat->cols+j] = randRange(range);
     }
 }
 
@@ -68,9 +66,10 @@ void initRandomLimit(Matrix* mat, int r, int c) {
 // with a list of rows in which there is a value
 // for each row where there is a value in the sparse matrix
 // eliminates unnecessary storage of zeros
-void initSparse(ParentArray* mat, int r, int c, float density) {
+void initSparse(ParentArray* mat, int r, int c, double density) {
     mat->array = malloc(sizeof mat->array);
     mat->arraySize = 1;
+    mat->density = density;
     mat->rows = r;
     mat->cols = c;
     
@@ -110,9 +109,11 @@ void initRandomNormal(Matrix* mat, int r, int c) {
     }
 }
 
-// shapes must be correct before use
+// initializes matT to be the transpose of mat
 void initTranspose(Matrix* mat, Matrix* matT) {
-    assert(matT->rows == mat->cols || matT->cols == mat->rows);
+    matT->ptr = calloc(mat->rows * mat->cols, sizeof matT->ptr);
+    matT->rows = mat->cols;
+    matT->cols = mat->rows;
 
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < mat->cols; j++)
@@ -120,33 +121,42 @@ void initTranspose(Matrix* mat, Matrix* matT) {
     }
 }
 
+//--------------------------------------------------------\\
+// I/O                                                    \\
+//--------------------------------------------------------\\
+
+// prints the given matrix
 void printMat(Matrix* mat) {
     for (int i = 0; i < mat->rows; i++) {
-        printf("[ ");
+        printf("[ \n");
         for (int j = 0; j < mat->cols; j++)
-            printf("%f ", mat->ptr[i*mat->cols+j]);
+            printf("\t%.16lf \n", mat->ptr[i*mat->cols+j]);
         printf("]\n");
     }
 }
 
-void set(Matrix* mat, float value, int row, int col) {
-    mat->ptr[row*mat->cols+col] = value;
-}
+
 
 //--------------------------------------------------------\\
 // Arithmetic Operations                                  \\
 //--------------------------------------------------------\\
 
-float matDotPartial(Matrix* m1, int row, Matrix* m2, int col) {
-    float output = 0;
+// component function
+// for use in matDot
+double matDotPartial(Matrix* m1, int row, Matrix* m2, int col) {
+    double output = 0;
     for (int i = 0; i < m2->rows; i++)
         output += m1->ptr[row*m1->cols+i] * m2->ptr[i*m2->cols+col];
 
     return output;
 }
 
+// general matrix multiplication function
+// not for use with vectors
 void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
-    assert(m3->rows != m1->rows || m3->cols != m2->cols || m1->cols != m2->rows);
+    assert(m1->cols == m2->rows);
+    assert(m3->rows == m1->rows);
+    assert(m3->cols == m2->cols);
 
     for (int i = 0; i < m1->rows; i++) {
         for (int j = 0; j < m2->cols; j++)
@@ -163,60 +173,86 @@ void matVecDot(Matrix* mat, Matrix* vec, Matrix* outVec) {
         outVec->ptr[i] = mat->ptr[i*mat->cols] * vec->ptr[i];
 }
 
-float sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
-    float output = 0;
-    for (int i = 0; i < sparse->array[col].arraySize; i++)
-        output += mat->ptr[row*mat->cols+sparse->array[col].array[i].first] * sparse->array[col].array[i].second;
+// component function
+// for use in sparseDotSecond
+// computes the dot product of 
+// a dense matrix row 
+// and sparse matrix column
+double sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
+    double output = 0;
+    for (int i = 0; i < sparse->array[col].arraySize; i++) {
+        int sparseColIndex = sparse->array[col].array[i].first;
+        double matrixValue = mat->ptr[row*mat->cols+sparseColIndex];
+        double sparseValue = sparse->array[col].array[i].second;
+        
+        output += matrixValue * sparseValue;
+    }
 
     return output;
 }
 
-float colRowDot(Matrix* col, Matrix* row) {
-    float out = 0;
-    for (int i = 0; i < col->rows; i++)
-        out += col->ptr[i] * row->ptr[i];
-
-    return out;
-}
-
+// matrix multiplication == sparseMatrix * columnVector
+// This one is specifically for the above expression
+// it is not generalized for all matrices
 void sparseDotFirst(ParentArray* sparse, Matrix* mat, Matrix* out) {
     assert(out->rows == mat->rows || out->cols == sparse->cols || mat->cols == sparse->rows);
 
     for (int i = 0; i < sparse->arraySize; i++) {
-        for (int j = 0; j < sparse->array[i].arraySize; j++)
-            out->ptr[sparse->array[i].value] += sparse->array[i].array[j].second * mat->ptr[sparse->array[i].value];
+        for (int j = 0; j < sparse->array[i].arraySize; j++) {
+            int sparseCol = sparse->array[i].value;
+            double sparseValue = sparse->array[i].array[j].second;
+            double matrixValue = mat->ptr[sparse->array[i].value];
+
+            out->ptr[sparseCol] +=  sparseValue * matrixValue;
+        }
     }
 }
 
+// matrix multiplication == denseMatrix * sparseMatrix
 void sparseDotSecond(Matrix* mat, ParentArray* sparse, Matrix* out) {
-    assert(out->rows == mat->rows || out->cols == sparse->cols || mat->cols == sparse->rows);
-    
+    assert(mat->cols == sparse->rows);
+    assert(out->rows == mat->rows);
+    assert(out->cols == sparse->cols);
+
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < sparse->arraySize; j++)
             out->ptr[i*out->cols+sparse->array[j].value] = sparseDotPartial(mat, i, sparse, j);
     }
 }
 
-// only meant to be used on vectors (1-D matrices)
-float magnitude(Matrix* vec) {
-    assert(vec->rows == 1);
+// vector dot == columnVector dot rowVector
+// dot product 
+// of matrix representations 
+// of vectors
+double colRowDot(Matrix* col, Matrix* row) {
+    double out = 0;
+    for (int i = 0; i < col->rows; i++)
+        out += col->ptr[i] * row->ptr[i];
 
-    float output = 0;
-    for (int i = 0; i < vec->cols; i++)
-        output += vec->ptr[i] * vec->ptr[i];
-
-    return sqrtf(output);
+    return out;
 }
 
+//--------------------------------------------------------\\
+// Manipulation                                           \\
+//--------------------------------------------------------\\
+
+void set(Matrix* mat, double value, int row, int col) {
+    mat->ptr[row*mat->cols+col] = value;
+}
+
+//--------------------------------------------------------\\
+// Linear Algebra                                         \\
+//--------------------------------------------------------\\
+
 // only meant to be used on vectors (1-D matrices)
-void normalize(Matrix* vec, float magnitude) {
+void normalize(Matrix* vec, double magnitude) {
     assert(vec->rows == 1);
 
     for (int i = 0; i < vec->cols; i++)
         vec->ptr[i] /= magnitude;
 }
 
-void normalizeOut(Matrix* vec, Matrix* output, float magnitude) {
+void normalizeOut(Matrix* vec, Matrix* output, double magnitude) {
     assert(vec->rows == 1);
     assert(output->rows == 1);
     assert(vec->cols == output->cols);
@@ -224,15 +260,22 @@ void normalizeOut(Matrix* vec, Matrix* output, float magnitude) {
     assert(magnitude > 0);
     
     for (int i = 0; i < vec->cols; i++) {
-        float assigned = vec->ptr[i] / magnitude;
+        double assigned = vec->ptr[i] / magnitude;
         assert(!isnan(assigned));
         output->ptr[i] = assigned;
     }
 }
 
-//--------------------------------------------------------\\
-// Manipulation                                           \\
-//--------------------------------------------------------\\
+// only meant to be used on vectors (1-D matrices)
+double magnitude(Matrix* vec) {
+    assert(vec->rows == 1);
+
+    double output = 0;
+    for (int i = 0; i < vec->cols; i++)
+        output += vec->ptr[i] * vec->ptr[i];
+
+    return sqrtf(output);
+}
 
 // uses power iteration to find the eigenVector
 // for the sparse matrix
@@ -243,17 +286,24 @@ void eigenVector(ParentArray* mat, Matrix* eigenVec, int iterations) {
         initMat(&dot, 1, eigenVec->cols);
         sparseDotFirst(mat, eigenVec, &dot);
         normalizeOut(&dot, eigenVec, magnitude(&dot));
-        clean(&dot);
+        cleanMat(&dot);
     }
 }
 
-float rayleighQuotient(ParentArray* sparse, Matrix* vec, Matrix* vecT) {
+// uses the Rayleigh Quotient to get the spectral radius
+// of the given eigenvector
+// presumably from power iteration
+// see https://en.wikipedia.org/wiki/Power_iteration
+double rayleighQuotient(ParentArray* sparse, Matrix* vec) {
+    Matrix vecT;
+    initTranspose(vec, &vecT);
+    
     Matrix sparseDot;
     initMat(&sparseDot, vec->rows, vec->cols);
     sparseDotFirst(sparse, vec, &sparseDot);
 
-    float num = colRowDot(vecT, &sparseDot);
-    float den = colRowDot(vecT, vec);
+    double num = colRowDot(&vecT, &sparseDot);
+    double den = colRowDot(&vecT, vec);
 
     return num / den;
 }

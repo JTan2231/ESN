@@ -10,7 +10,7 @@
 
 typedef struct {
     int first;
-    float second;
+    double second;
 } Pair;
 
 typedef struct {
@@ -24,6 +24,7 @@ typedef struct {
     int arraySize;
     int cols;
     int rows;
+    double density;
 } ParentArray;
 
 //------------------------------------\\
@@ -63,7 +64,7 @@ void cleanParentArray(ParentArray* pa) {
 //------------------------------------\\
 
 // add a value to the parent's child array
-void parentAdd(Parent* p, int first, float second) {
+void parentAdd(Parent* p, int first, double second) {
     if (p->arraySize == 0) {
         p->array = calloc(2, sizeof(Pair));
         p->array[0].first = first;
@@ -134,23 +135,25 @@ void parentArrayAdd(ParentArray* pa, Parent* p) {
 //------------------------------------\\
 
 void parentPrint(Parent* p) {
-    printf("[ {value: %d} ", p->value);
+    printf("{ Column: %d }\n", p->value);
     for (int i = 0; i < p->arraySize; i++)
-        printf("First, Second: %d, %f ", p->array[i].first, p->array[i].second);
-    printf("]\n");
+        printf("\tRow: %d\n\tValue: %.18lf\n", p->array[i].first, p->array[i].second);
 }
 
 void parentArrayPrint(ParentArray* pa) {
+    printf("Rows: %d\n", pa->rows);
+    printf("Columns: %d\n", pa->cols);
+    printf("Density: %lf\n", pa->density);
     printf("[ \n");
     for (int i = 0; i < pa->arraySize-1; i++) {
-        printf("    ");
+        printf("\t");
         parentPrint(&(pa->array[i]));
         printf("\n");
     }
     printf("]\n");
 }
 
-// these four return indices
+// TODO: comment on what these actually do
 
 int parentArrayIn(ParentArray* pa, int value) {
     int output = 0;

@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <math.h>
 
-const float PI = 3.14159;
-const float RAND_UPPER = 3;
+const double PI = 3.14159;
+const double RAND_UPPER = 3;
 
 //------------------------------------\\
 // Random Number Generation           \\
@@ -39,8 +39,8 @@ int randRange(int max) {
     return retval;
 }
 
-float randomFloat() {
-    float output = (float)rand()/(float)(RAND_MAX/RAND_UPPER);
+double randomDouble() {
+    double output = (double)rand()/(double)(RAND_MAX/RAND_UPPER);
     if (randBinary()) return -1*output;
     return output;
 }
@@ -49,21 +49,21 @@ float randomFloat() {
 // Statistics                         \\
 //------------------------------------\\
 
-float normal(float x) {
-    const float mean = 0;
-    const float variance = 1;
+double normal(double x) {
+    const double mean = 0;
+    const double variance = 1;
 
     return expf(-0.5 * pow((x-mean)/variance, 2)) / (variance * sqrtf(2*PI));
 }
 
 // generate value from a normal distribution
 // see Marsaglia Polar Method
-float marsagliaPolar() {
-    float U, V, S;
+double marsagliaPolar() {
+    double U, V, S;
     do {
-        U = (float)rand()/(float)(RAND_MAX);
+        U = (double)rand()/(double)(RAND_MAX);
         if (randBinary()) U *= -1;
-        V = (float)rand()/(float)(RAND_MAX);
+        V = (double)rand()/(double)(RAND_MAX);
         if (randBinary()) V *= -1;
         S = U*U + V*V;
     } while (S >= 1);

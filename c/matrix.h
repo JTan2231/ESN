@@ -112,7 +112,7 @@ void initRandomNormal(Matrix* mat, int r, int c) {
 
 // shapes must be correct before use
 void initTranspose(Matrix* mat, Matrix* matT) {
-    assert(matT->rows != mat->cols || matT->cols != mat->rows);
+    assert(matT->rows == mat->cols || matT->cols == mat->rows);
 
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < mat->cols; j++)
@@ -169,6 +169,14 @@ float sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
         output += mat->ptr[row*mat->cols+sparse->array[col].array[i].first] * sparse->array[col].array[i].second;
 
     return output;
+}
+
+float colRowDot(Matrix* col, Matrix* row) {
+    float out = 0;
+    for (int i = 0; i < col->rows; i++)
+        out += col->ptr[i] * row->ptr[i];
+
+    return out;
 }
 
 void sparseDotFirst(ParentArray* sparse, Matrix* mat, Matrix* out) {
@@ -237,6 +245,17 @@ void eigenVector(ParentArray* mat, Matrix* eigenVec, int iterations) {
         normalizeOut(&dot, eigenVec, magnitude(&dot));
         clean(&dot);
     }
+}
+
+float rayleighQuotient(ParentArray* sparse, Matrix* vec, Matrix* vecT) {
+    Matrix sparseDot;
+    initMat(&sparseDot, vec->rows, vec->cols);
+    sparseDotFirst(sparse, vec, &sparseDot);
+
+    float num = colRowDot(vecT, &sparseDot);
+    float den = colRowDot(vecT, vec);
+
+    return num / den;
 }
 
 #endif

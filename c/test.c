@@ -24,25 +24,31 @@ int main() {
     initSparse(&mat, 10, 10, 0.1);
     Matrix vec;
     initRandom(&vec, 1, 10);
+    Matrix transpose;
+    initMat(&transpose, 10, 1);
     Matrix out;
     initMat(&out, 1, 10);
 
+    eigenVector(&mat, &vec, 15);
+
     printf("Sparse: \n");
     parentArrayPrint(&mat);
-    printf("vec: \n");
+    printf("Eigenvector: \n");
     printMat(&vec);
+    initTranspose(&vec, &transpose);
+    printf("Transpose: \n");
+    printMat(&transpose);
 
-    /*sparseDotFirst(&mat, &vec, &out);
+    float eigenValue = rayleighQuotient(&mat, &vec, &transpose);
 
-    printf("out: \n");
-    printMat(&out);*/
+    printf("Rayleigh Quotient: %f\n", eigenValue);
 
-    eigenVector(&mat, &vec, 10);
+    /*eigenVector(&mat, &vec, 10);
 
     printf("The eigenvector of \n");
     parentArrayPrint(&mat);
     printf("is \n");
-    printMat(&vec);
+    printMat(&vec);*/
     
 
     /*ParentArray pa;

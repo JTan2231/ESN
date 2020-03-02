@@ -29,6 +29,7 @@ typedef struct {
 // Initialization                         \\
 //----------------------------------------\\
 
+// initialize matrix of zeros
 void initMat(Matrix* mat, int r, int c) {
     mat->ptr = calloc(r * c, sizeof mat->ptr);
     mat->rows = r;
@@ -39,6 +40,7 @@ void cleanMat(Matrix* mat) {
     free(mat->ptr);
 }
 
+// initialize matrix with random floating point values
 void initRandom(Matrix* mat, int r, int c) {
     mat->ptr = calloc(r * c, sizeof mat->ptr);
     mat->rows = r;
@@ -50,6 +52,7 @@ void initRandom(Matrix* mat, int r, int c) {
     }
 }
 
+// initialize a matrix with random integers between 0 - range
 void initRandomRange(Matrix* mat, int r, int c, int range) {
     mat->ptr = calloc(r * c, sizeof mat->ptr);
     mat->rows = r;
@@ -77,10 +80,14 @@ void initSparse(ParentArray* mat, int r, int c, double density) {
     int count = 0;
     int total = (int)(r*c*density);
 
+    // density is just a percentage
+    // of the max available
+    // to be filled
     while (count < total) {
         int column = randRange(c);
         int in = parentArrayIn(mat, column);
         if (in+1 != mat->arraySize) {
+            // if the generated column number exists, check for row
             int row = randRange(r);
             int in2 = parentInFirst(&(mat->array[in]), row);
             if (in2 == 0) {
@@ -89,6 +96,7 @@ void initSparse(ParentArray* mat, int r, int c, double density) {
             }
         }
         else {
+            // make and add a new column
             Parent p;
             initParent(&p, column);
             parentAdd(&p, randRange(r), marsagliaPolar());

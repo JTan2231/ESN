@@ -23,6 +23,7 @@ typedef struct {
 // TODO: Matrix inverse
 // TODO: Tikhonov Regularization
 // TODO: Vector structure and functions
+// TODO: Matrix pointer to pointer pointer for easier indexing
 
 //----------------------------------------\\
 // Initialization                         \\
@@ -245,6 +246,7 @@ void set(Matrix* mat, double value, int row, int col) {
 //--------------------------------------------------------\\
 
 // only meant to be used on vectors (1-D matrices)
+// normalizes the given vector
 void normalize(Matrix* vec, double magnitude) {
     assert(vec->rows == 1);
 
@@ -252,6 +254,10 @@ void normalize(Matrix* vec, double magnitude) {
         vec->ptr[i] /= magnitude;
 }
 
+// only meant to be used on vectors (1-D matrices)
+// normalizes the given vector
+// and outputs the normalized values
+// in the given output vector
 void normalizeOut(Matrix* vec, Matrix* output, double magnitude) {
     assert(vec->rows == 1);
     assert(output->rows == 1);
@@ -267,6 +273,7 @@ void normalizeOut(Matrix* vec, Matrix* output, double magnitude) {
 }
 
 // only meant to be used on vectors (1-D matrices)
+// calculates the magnitude of the given vector
 double magnitude(Matrix* vec) {
     assert(vec->rows == 1);
 

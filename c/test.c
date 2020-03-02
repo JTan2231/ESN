@@ -13,9 +13,7 @@
 // TODO: Expected outputs from given inputs
 
 void printHeader(char header[]) {
-    printf("-----------------\n");
-    printf("%s\n", header);
-    printf("-----------------\n");
+    printf("-----------------\n%s\n-----------------\n", header);
 }
 
 void printSubHeader(char subHeader[]) {

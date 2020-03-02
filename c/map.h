@@ -8,17 +8,25 @@
 #define MAP
 #include <stdio.h>
 
+// TODO: Renaming sparse matrix representation
+// These three structs compose the sparse matrix representation
+
+// The given row and associated value
 typedef struct {
     int first;
     double second;
 } Pair;
 
+// A column with its filled-in rows
 typedef struct {
     Pair* array;
     int value;
     int arraySize;
 } Parent;
 
+// High level view of the sparse matrix
+// Contains info on the matrix
+// as well as the data itself
 typedef struct {
     Parent* array;
     int arraySize;
@@ -62,6 +70,10 @@ void cleanParentArray(ParentArray* pa) {
 //------------------------------------\\
 // Mutation                           \\
 //------------------------------------\\
+
+// These two ensure that added values to the arrays
+// are in an ascending sort order
+// Uniqueness is handled in initSparse(...)
 
 // add a value to the parent's child array
 void parentAdd(Parent* p, int first, double second) {

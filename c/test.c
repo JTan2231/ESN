@@ -6,6 +6,12 @@
 #include "map.h"
 #include "generation.h"
 
+// rudimentary test file
+// to make sure everything works as expected
+
+// TODO: Function testing
+// TODO: Expected outputs from given inputs
+
 void printHeader(char header[]) {
     printf("-----------------\n");
     printf("%s\n", header);

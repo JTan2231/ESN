@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-18-20
- * Last Edit: 2-23-20, Joey Tan
+ * Last Edit: 3-4-20, Joey Tan
  */
 
 #ifndef MATRIX
@@ -15,10 +15,15 @@
 #include "complex.h"
 
 typedef struct {
-    double* ptr;
+    double** array;
     int rows;
     int cols;
 } Matrix;
+
+typedef struct {
+    double* array;
+    int size;
+} Vector;
 
 typedef struct {
     Complex* ptr;
@@ -27,10 +32,7 @@ typedef struct {
 } ComplexMatrix;
 
 // TODO: Organizing this file
-// TODO: Matrix inverse
 // TODO: Tikhonov Regularization
-// TODO: Vector structure and functions
-// TODO: Matrix pointer to pointer pointer for easier indexing
 
 //----------------------------------------\\
 // Initialization                         \\
@@ -38,51 +40,77 @@ typedef struct {
 
 // initialize matrix of zeros
 void initMat(Matrix* mat, int r, int c) {
-    mat->ptr = calloc(r * c, sizeof mat->ptr);
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++)
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+    
     mat->rows = r;
     mat->cols = c;
 }
 
+void initVec(Vector* vec, int size) {
+    vec->array = calloc(size, sizeof(vec->array));
+    vec->size = size;
+}
+
 void initIdent(Matrix* mat, int r, int c) {
-    mat->ptr = calloc(r * c, sizeof mat->ptr);
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++)
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+    
     mat->rows = r;
     mat->cols = c;
 
     for (int i = 0; i < r; i++)
-        mat->ptr[i*c+i] = 1;
-}
-
-void initCompMat(ComplexMatrix* cMat, int r, int c) {
-    cMat->ptr = calloc(r * c, sizeof cMat->ptr);
-    cMat->rows = r;
-    cMat->cols = c;
+        mat->array[i][i] = 1;
 }
 
 void cleanMat(Matrix* mat) {
-    free(mat->ptr);
+    for (int i = 0; i < mat->rows; i++)
+        free(mat->array[i]);
+        
+    free(mat->array);
+}
+
+void cleanVec(Vector* vec) {
+    free(vec->array);
 }
 
 // initialize matrix with random floating point values
 void initRandom(Matrix* mat, int r, int c) {
-    mat->ptr = calloc(r * c, sizeof mat->ptr);
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++)
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+    
     mat->rows = r;
     mat->cols = c;
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
-            mat->ptr[i*mat->cols+j] = randomDouble();
+            mat->array[i][j] = randomDouble();
     }
+}
+
+void initVecRandom(Vector* vec, int size) {
+    vec->array = calloc(size, sizeof(vec->array));
+    vec->size = size;
+    
+    for (int i = 0; i < size; i++) 
+        vec->array[i] = randomDouble();
 }
 
 // initialize a matrix with random integers between 0 - range
 void initRandomRange(Matrix* mat, int r, int c, int range) {
-    mat->ptr = calloc(r * c, sizeof mat->ptr);
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++)
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+    
     mat->rows = r;
     mat->cols = c;
-
+    
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
-            mat->ptr[i*mat->cols+j] = randRange(range);
+            mat->array[i][j] = randRange(range);
     }
 }
 
@@ -130,25 +158,39 @@ void initSparse(ParentArray* mat, int r, int c, double density) {
 
 // initializes a matrix using normally distributed random values
 void initRandomNormal(Matrix* mat, int r, int c) {
-    mat->ptr = calloc(r * c, sizeof mat->ptr);
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++)
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+    
     mat->rows = r;
     mat->cols = c;
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
-            mat->ptr[i*mat->cols+j] = marsagliaPolar();
+            mat->array[i][j] = marsagliaPolar();
     }
+}
+
+void initVecRandomNormal(Vector* vec, int size) {
+    vec->array = calloc(size, sizeof(vec->array));
+    vec->size = size;
+    
+    for (int i = 0; i < size; i++)
+        vec->array[i] = marsagliaPolar();
 }
 
 // initializes matT to be the transpose of mat
 void initTranspose(Matrix* mat, Matrix* matT) {
-    matT->ptr = calloc(mat->rows * mat->cols, sizeof matT->ptr);
-    matT->rows = mat->cols;
-    matT->cols = mat->rows;
+    matT->array = calloc(mat->rows, sizeof(*(mat->array)));
+    for (int i = 0; i < mat->rows; i++)
+        matT->array[i] = calloc(mat->cols, sizeof(*(mat->array[i])));
+    
+    matT->rows = mat->rows;
+    matT->cols = mat->cols;
 
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < mat->cols; j++)
-            matT->ptr[j*matT->cols+i] = mat->ptr[i*mat->cols+j];
+            matT->array[j][i] = mat->array[i][j];
     }
 }
 
@@ -161,12 +203,10 @@ void printMat(Matrix* mat) {
     for (int i = 0; i < mat->rows; i++) {
         printf("[ \n");
         for (int j = 0; j < mat->cols; j++)
-            printf("\t%.16lf \n", mat->ptr[i*mat->cols+j]);
+            printf("\t%.16lf \n", mat->array[i][j]);
         printf("]\n");
     }
 }
-
-
 
 //--------------------------------------------------------\\
 // Arithmetic Operations                                  \\
@@ -177,7 +217,7 @@ void printMat(Matrix* mat) {
 double matDotPartial(Matrix* m1, int row, Matrix* m2, int col) {
     double output = 0;
     for (int i = 0; i < m2->rows; i++)
-        output += m1->ptr[row*m1->cols+i] * m2->ptr[i*m2->cols+col];
+        output += m1->array[row][i] * m2->array[i][col];
 
     return output;
 }
@@ -191,17 +231,8 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
 
     for (int i = 0; i < m1->rows; i++) {
         for (int j = 0; j < m2->cols; j++)
-            m3->ptr[i*m3->cols+j] = matDotPartial(m1, i, m2, j);
+            m3->array[i][j] = matDotPartial(m1, i, m2, j);
     }
-}
-
-// matrix by vector dot product
-void matVecDot(Matrix* mat, Matrix* vec, Matrix* outVec) {
-    assert(mat->rows == vec->cols);
-    assert(vec->cols == outVec->cols);
-
-    for (int i = 0; i < mat->rows; i++)
-        outVec->ptr[i] = mat->ptr[i*mat->cols] * vec->ptr[i];
 }
 
 // component function
@@ -213,7 +244,7 @@ double sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
     double output = 0;
     for (int i = 0; i < sparse->array[col].arraySize; i++) {
         int sparseColIndex = sparse->array[col].array[i].first;
-        double matrixValue = mat->ptr[row*mat->cols+sparseColIndex];
+        double matrixValue = mat->array[row][sparseColIndex];
         double sparseValue = sparse->array[col].array[i].second;
         
         output += matrixValue * sparseValue;
@@ -225,16 +256,16 @@ double sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
 // matrix multiplication == sparseMatrix * columnVector
 // This one is specifically for the above expression
 // it is not generalized for all matrices
-void sparseDotFirst(ParentArray* sparse, Matrix* mat, Matrix* out) {
-    assert(out->rows == mat->rows || out->cols == sparse->cols || mat->cols == sparse->rows);
+void sparseDotFirst(ParentArray* sparse, Vector* vec, Vector* out) {
+    assert(out->size == vec->size || out->size == sparse->cols || vec->size == sparse->rows);
 
     for (int i = 0; i < sparse->arraySize; i++) {
         for (int j = 0; j < sparse->array[i].arraySize; j++) {
             int sparseCol = sparse->array[i].value;
             double sparseValue = sparse->array[i].array[j].second;
-            double matrixValue = mat->ptr[sparse->array[i].value];
+            double matrixValue = vec->array[sparse->array[i].value];
 
-            out->ptr[sparseCol] +=  sparseValue * matrixValue;
+            out->array[sparseCol] +=  sparseValue * matrixValue;
         }
     }
 }
@@ -247,7 +278,7 @@ void sparseDotSecond(Matrix* mat, ParentArray* sparse, Matrix* out) {
 
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < sparse->arraySize; j++)
-            out->ptr[i*out->cols+sparse->array[j].value] = sparseDotPartial(mat, i, sparse, j);
+            out->array[i][sparse->array[j].value] = sparseDotPartial(mat, i, sparse, j);
     }
 }
 
@@ -255,10 +286,10 @@ void sparseDotSecond(Matrix* mat, ParentArray* sparse, Matrix* out) {
 // dot product 
 // of matrix representations 
 // of vectors
-double colRowDot(Matrix* col, Matrix* row) {
+double colRowDot(Vector* col, Vector* row) {
     double out = 0;
-    for (int i = 0; i < col->rows; i++)
-        out += col->ptr[i] * row->ptr[i];
+    for (int i = 0; i < col->size; i++)
+        out += col->array[i] * row->array[i];
 
     return out;
 }
@@ -268,7 +299,7 @@ double colRowDot(Matrix* col, Matrix* row) {
 //--------------------------------------------------------\\
 
 void set(Matrix* mat, double value, int row, int col) {
-    mat->ptr[row*mat->cols+col] = value;
+    mat->array[row][col] = value;
 }
 
 //--------------------------------------------------------\\
@@ -277,39 +308,39 @@ void set(Matrix* mat, double value, int row, int col) {
 
 // only meant to be used on vectors (1-D matrices)
 // normalizes the given vector
-void normalize(Matrix* vec, double magnitude) {
-    assert(vec->rows == 1);
+void normalize(Vector* vec, double magnitude) {
+    assert(vec->size == 1);
 
-    for (int i = 0; i < vec->cols; i++)
-        vec->ptr[i] /= magnitude;
+    for (int i = 0; i < vec->size; i++)
+        vec->array[i] /= magnitude;
 }
 
 // only meant to be used on vectors (1-D matrices)
 // normalizes the given vector
 // and outputs the normalized values
 // in the given output vector
-void normalizeOut(Matrix* vec, Matrix* output, double magnitude) {
-    assert(vec->rows == 1);
-    assert(output->rows == 1);
-    assert(vec->cols == output->cols);
+void normalizeOut(Vector* vec, Vector* output, double magnitude) {
+    assert(vec->size == 1);
+    assert(output->size == 1);
+    assert(vec->size == output->size);
 
     assert(magnitude > 0);
     
-    for (int i = 0; i < vec->cols; i++) {
-        double assigned = vec->ptr[i] / magnitude;
+    for (int i = 0; i < vec->size; i++) {
+        double assigned = vec->array[i] / magnitude;
         assert(!isnan(assigned));
-        output->ptr[i] = assigned;
+        output->array[i] = assigned;
     }
 }
 
 // only meant to be used on vectors (1-D matrices)
 // calculates the magnitude of the given vector
-double magnitude(Matrix* vec) {
-    assert(vec->rows == 1);
+double magnitude(Vector* vec) {
+    assert(vec->size == 1);
 
     double output = 0;
-    for (int i = 0; i < vec->cols; i++)
-        output += vec->ptr[i] * vec->ptr[i];
+    for (int i = 0; i < vec->size; i++)
+        output += vec->array[i] * vec->array[i];
 
     return sqrt(output);
 }
@@ -317,13 +348,13 @@ double magnitude(Matrix* vec) {
 // uses power iteration to find the eigenVector
 // for the sparse matrix
 // see https://en.wikipedia.org/wiki/Power_iteration
-void eigenVector(ParentArray* mat, Matrix* eigenVec, int iterations) {
-    Matrix dot;
+void eigenVector(ParentArray* mat, Vector* eigenVec, int iterations) {
+    Vector dot;
     for (int i = 0; i < iterations; i++) {
-        initMat(&dot, 1, eigenVec->cols);
+        initVec(&dot, eigenVec->size);
         sparseDotFirst(mat, eigenVec, &dot);
         normalizeOut(&dot, eigenVec, magnitude(&dot));
-        cleanMat(&dot);
+        cleanVec(&dot);
     }
 }
 
@@ -331,16 +362,13 @@ void eigenVector(ParentArray* mat, Matrix* eigenVec, int iterations) {
 // of the given eigenvector
 // presumably from power iteration
 // see https://en.wikipedia.org/wiki/Power_iteration
-double rayleighQuotient(ParentArray* sparse, Matrix* vec) {
-    Matrix vecT;
-    initTranspose(vec, &vecT);
-    
-    Matrix sparseDot;
-    initMat(&sparseDot, vec->rows, vec->cols);
+double rayleighQuotient(ParentArray* sparse, Vector* vec) {
+    Vector sparseDot;
+    initVec(&sparseDot, vec->size);
     sparseDotFirst(sparse, vec, &sparseDot);
 
-    double num = colRowDot(&vecT, &sparseDot);
-    double den = colRowDot(&vecT, vec);
+    double num = colRowDot(vec, &sparseDot);
+    double den = colRowDot(vec, vec);
 
     return num / den;
 }
@@ -352,24 +380,24 @@ void crout(Matrix* mat, Matrix* lower, Matrix* upper) {
     assert(mat->rows == mat->cols);
 
     for (int i = 0; i < mat->rows; i++)
-        upper->ptr[i*upper->cols+i] = 1;
+        upper->array[i][i] = 1;
 
     // for loop hell
     for (int i = 0; i < mat->rows; i++) {
         for (int j = i; j < mat->rows; j++) {
             double sum = 0;
             for (int k = 0; k < i; k++)
-                sum += lower->ptr[j*lower->cols+k] * upper->ptr[k*upper->cols+i];
+                sum += lower->array[j][k] * upper->array[k][i];
 
-            lower->ptr[j*lower->cols+i] = mat->ptr[j*mat->cols+i] - sum;
+            lower->array[j][i] = mat->array[j][i] - sum;
         }
 
         for (int j = i; j < mat->rows; j++) {
             double sum = 0;
             for (int k = 0; k < i; k++)
-                sum += lower->ptr[i*lower->cols+k] * upper->ptr[k*upper->cols+j];
+                sum += lower->array[i][k] * upper->array[k][j];
 
-            upper->ptr[i*upper->cols+j] = (mat->ptr[i*mat->cols+j] - sum) / lower->ptr[i*lower->cols+i];
+            upper->array[i][j] = (mat->array[i][j] - sum) / lower->array[i][i];
         }
     }
 }
@@ -390,9 +418,9 @@ void inverse(Matrix* mat, Matrix* lower, Matrix* upper, Matrix* inverse) {
         for (int i = 0; i < d.rows; i++) {
             double sum = 0;
             for (int j = 0; j < i; j++)
-                sum += lower->ptr[i*lower->cols+j] * d.ptr[j*d.cols+column];
+                sum += lower->array[i][j] * d.array[j][column];
 
-            d.ptr[i*d.cols+column] = (eye.ptr[i*eye.cols+column]-sum) / lower->ptr[i*lower->cols+i];
+            d.array[i][column] = (eye.array[i][column]-sum) / lower->array[i][i];
         }
     }
 
@@ -401,9 +429,9 @@ void inverse(Matrix* mat, Matrix* lower, Matrix* upper, Matrix* inverse) {
         for (int i = inverse->rows-1; i >= 0; i--) {
             double sum = 0;
             for (int j = i; j < inverse->rows; j++)
-                sum += upper->ptr[i*upper->cols+j] * inverse->ptr[j*inverse->cols+column];
+                sum += upper->array[i][j] * inverse->array[j][column];
 
-            inverse->ptr[i*inverse->cols+column] = d.ptr[i*d.cols+column] - sum;
+            inverse->array[i][column] = d.array[i][column] - sum;
         }
     }
 }

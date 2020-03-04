@@ -12,12 +12,19 @@
 #include <assert.h>
 #include "generation.h"
 #include "map.h"
+#include "complex.h"
 
 typedef struct {
     double* ptr;
     int rows;
     int cols;
 } Matrix;
+
+typedef struct {
+    Complex* ptr;
+    int rows;
+    int cols;
+} ComplexMatrix;
 
 // TODO: Organizing this file
 // TODO: Matrix inverse
@@ -34,6 +41,21 @@ void initMat(Matrix* mat, int r, int c) {
     mat->ptr = calloc(r * c, sizeof mat->ptr);
     mat->rows = r;
     mat->cols = c;
+}
+
+void initIdent(Matrix* mat, int r, int c) {
+    mat->ptr = calloc(r * c, sizeof mat->ptr);
+    mat->rows = r;
+    mat->cols = c;
+
+    for (int i = 0; i < r; i++)
+        mat->ptr[i*c+i] = 1;
+}
+
+void initCompMat(ComplexMatrix* cMat, int r, int c) {
+    cMat->ptr = calloc(r * c, sizeof cMat->ptr);
+    cMat->rows = r;
+    cMat->cols = c;
 }
 
 void cleanMat(Matrix* mat) {
@@ -289,7 +311,7 @@ double magnitude(Matrix* vec) {
     for (int i = 0; i < vec->cols; i++)
         output += vec->ptr[i] * vec->ptr[i];
 
-    return sqrtf(output);
+    return sqrt(output);
 }
 
 // uses power iteration to find the eigenVector
@@ -322,5 +344,69 @@ double rayleighQuotient(ParentArray* sparse, Matrix* vec) {
 
     return num / den;
 }
+
+// computes LU decomposition
+// of given matrix (Crout style)
+// see https://en.wikipedia.org/wiki/Crout_matrix_decomposition
+void crout(Matrix* mat, Matrix* lower, Matrix* upper) {
+    assert(mat->rows == mat->cols);
+
+    for (int i = 0; i < mat->rows; i++)
+        upper->ptr[i*upper->cols+i] = 1;
+
+    // for loop hell
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = i; j < mat->rows; j++) {
+            double sum = 0;
+            for (int k = 0; k < i; k++)
+                sum += lower->ptr[j*lower->cols+k] * upper->ptr[k*upper->cols+i];
+
+            lower->ptr[j*lower->cols+i] = mat->ptr[j*mat->cols+i] - sum;
+        }
+
+        for (int j = i; j < mat->rows; j++) {
+            double sum = 0;
+            for (int k = 0; k < i; k++)
+                sum += lower->ptr[i*lower->cols+k] * upper->ptr[k*upper->cols+j];
+
+            upper->ptr[i*upper->cols+j] = (mat->ptr[i*mat->cols+j] - sum) / lower->ptr[i*lower->cols+i];
+        }
+    }
+}
+
+// computes the inverse of the given matrix
+// using front- and back-substitution
+// see: 
+// - https://algowiki-project.org/en/Backward_substitution
+// - https://algowiki-project.org/en/Forward_substitution
+void inverse(Matrix* mat, Matrix* lower, Matrix* upper, Matrix* inverse) {
+    Matrix eye;
+    initIdent(&eye, mat->rows, mat->cols);
+
+    Matrix d;
+    initMat(&d, mat->rows, mat->cols);
+
+    for (int column = 0; column < d.cols; column++) {
+        for (int i = 0; i < d.rows; i++) {
+            double sum = 0;
+            for (int j = 0; j < i; j++)
+                sum += lower->ptr[i*lower->cols+j] * d.ptr[j*d.cols+column];
+
+            d.ptr[i*d.cols+column] = (eye.ptr[i*eye.cols+column]-sum) / lower->ptr[i*lower->cols+i];
+        }
+    }
+
+    // solve for x (the inverse of mat)
+    for (int column = 0; column < inverse->cols; column++) {
+        for (int i = inverse->rows-1; i >= 0; i--) {
+            double sum = 0;
+            for (int j = i; j < inverse->rows; j++)
+                sum += upper->ptr[i*upper->cols+j] * inverse->ptr[j*inverse->cols+column];
+
+            inverse->ptr[i*inverse->cols+column] = d.ptr[i*d.cols+column] - sum;
+        }
+    }
+}
+
 
 #endif

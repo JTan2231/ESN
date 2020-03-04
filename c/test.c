@@ -5,6 +5,7 @@
 #include "matrix.h"
 #include "map.h"
 #include "generation.h"
+#include "complex.h"
 
 // rudimentary test file
 // to make sure everything works as expected

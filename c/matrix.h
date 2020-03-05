@@ -12,7 +12,6 @@
 #include <assert.h>
 #include "generation.h"
 #include "map.h"
-#include "complex.h"
 
 typedef struct {
     double** array;
@@ -25,12 +24,6 @@ typedef struct {
     int size;
 } Vector;
 
-typedef struct {
-    Complex* ptr;
-    int rows;
-    int cols;
-} ComplexMatrix;
-
 // TODO: Organizing this file
 // TODO: Tikhonov Regularization
 
@@ -38,7 +31,7 @@ typedef struct {
 // Initialization                         \\
 //----------------------------------------\\
 
-// initialize matrix of zeros
+// initialize matrix of zeros of size (r, c)
 void initMat(Matrix* mat, int r, int c) {
     mat->array = calloc(r, sizeof(*(mat->array)));
     for (int i = 0; i < r; i++)
@@ -48,11 +41,13 @@ void initMat(Matrix* mat, int r, int c) {
     mat->cols = c;
 }
 
+// initialize empty vector of given size
 void initVec(Vector* vec, int size) {
     vec->array = calloc(size, sizeof(vec->array));
     vec->size = size;
 }
 
+// initialize identity matrix of size (r, c)
 void initIdent(Matrix* mat, int r, int c) {
     mat->array = calloc(r, sizeof(*(mat->array)));
     for (int i = 0; i < r; i++)
@@ -65,6 +60,7 @@ void initIdent(Matrix* mat, int r, int c) {
         mat->array[i][i] = 1;
 }
 
+// deallocate the given matrix
 void cleanMat(Matrix* mat) {
     for (int i = 0; i < mat->rows; i++)
         free(mat->array[i]);
@@ -72,6 +68,7 @@ void cleanMat(Matrix* mat) {
     free(mat->array);
 }
 
+// deallocate the given vector
 void cleanVec(Vector* vec) {
     free(vec->array);
 }
@@ -91,6 +88,7 @@ void initRandom(Matrix* mat, int r, int c) {
     }
 }
 
+// initialize vector with random floating point values
 void initVecRandom(Vector* vec, int size) {
     vec->array = calloc(size, sizeof(vec->array));
     vec->size = size;
@@ -99,7 +97,7 @@ void initVecRandom(Vector* vec, int size) {
         vec->array[i] = randomDouble();
 }
 
-// initialize a matrix with random integers between 0 - range
+// initialize matrix with random integers between 0 - range
 void initRandomRange(Matrix* mat, int r, int c, int range) {
     mat->array = calloc(r, sizeof(*(mat->array)));
     for (int i = 0; i < r; i++)
@@ -141,6 +139,7 @@ void initSparse(ParentArray* mat, int r, int c, double density) {
             int row = randRange(r);
             int in2 = parentInFirst(&(mat->array[in]), row);
             if (in2 == 0) {
+                // row doesn't exist, add the value
                 parentAdd(&(mat->array[in]), row, marsagliaPolar());
                 count++;
             }
@@ -156,7 +155,7 @@ void initSparse(ParentArray* mat, int r, int c, double density) {
     }
 }
 
-// initializes a matrix using normally distributed random values
+// initialize matrix using normally distributed random values
 void initRandomNormal(Matrix* mat, int r, int c) {
     mat->array = calloc(r, sizeof(*(mat->array)));
     for (int i = 0; i < r; i++)
@@ -171,6 +170,7 @@ void initRandomNormal(Matrix* mat, int r, int c) {
     }
 }
 
+// initialize vector using normally distributed random values
 void initVecRandomNormal(Vector* vec, int size) {
     vec->array = calloc(size, sizeof(vec->array));
     vec->size = size;
@@ -179,7 +179,7 @@ void initVecRandomNormal(Vector* vec, int size) {
         vec->array[i] = marsagliaPolar();
 }
 
-// initializes matT to be the transpose of mat
+// initialize matT to be the transpose of mat
 void initTranspose(Matrix* mat, Matrix* matT) {
     matT->array = calloc(mat->rows, sizeof(*(mat->array)));
     for (int i = 0; i < mat->rows; i++)
@@ -208,12 +208,20 @@ void printMat(Matrix* mat) {
     }
 }
 
+void printVec(Vector* vec) {
+    printf("[ \n");
+    for (int i = 0; i < vec->size; i++)
+        printf("\t%.16lf \n", vec->array[i]);
+    printf("]\n");
+}
+
 //--------------------------------------------------------\\
 // Arithmetic Operations                                  \\
 //--------------------------------------------------------\\
 
 // component function
 // for use in matDot
+// dot product of m1 row and m2 column
 double matDotPartial(Matrix* m1, int row, Matrix* m2, int col) {
     double output = 0;
     for (int i = 0; i < m2->rows; i++)
@@ -233,6 +241,22 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
         for (int j = 0; j < m2->cols; j++)
             m3->array[i][j] = matDotPartial(m1, i, m2, j);
     }
+}
+
+double matVecDotPartial(Matrix* mat, int row, Vector* vec) {
+    double output = 0;
+    for (int i = 0; i < vec->size; i++)
+        output += mat->array[row][i] * vec->array[i];
+    
+    return output;
+}
+
+void matVecDot(Matrix* mat, Vector* vec, Vector* out) {
+    assert(mat->cols == vec->size);
+    assert(mat->rows == out->size);
+
+    for (int i = 0; i < out->size; i++)
+        out->array[i] = matVecDotPartial(mat, i, vec);
 }
 
 // component function
@@ -255,8 +279,7 @@ double sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
 
 // matrix multiplication == sparseMatrix * columnVector
 // This one is specifically for the above expression
-// it is not generalized for all matrices
-void sparseDotFirst(ParentArray* sparse, Vector* vec, Vector* out) {
+void sparseVecDot(ParentArray* sparse, Vector* vec, Vector* out) {
     assert(out->size == vec->size || out->size == sparse->cols || vec->size == sparse->rows);
 
     for (int i = 0; i < sparse->arraySize; i++) {
@@ -286,7 +309,7 @@ void sparseDotSecond(Matrix* mat, ParentArray* sparse, Matrix* out) {
 // dot product 
 // of matrix representations 
 // of vectors
-double colRowDot(Vector* col, Vector* row) {
+double vecDot(Vector* col, Vector* row) {
     double out = 0;
     for (int i = 0; i < col->size; i++)
         out += col->array[i] * row->array[i];
@@ -298,6 +321,8 @@ double colRowDot(Vector* col, Vector* row) {
 // Manipulation                                           \\
 //--------------------------------------------------------\\
 
+// sets the given spot to a certain value
+// unused for some reason
 void set(Matrix* mat, double value, int row, int col) {
     mat->array[row][col] = value;
 }
@@ -306,22 +331,16 @@ void set(Matrix* mat, double value, int row, int col) {
 // Linear Algebra                                         \\
 //--------------------------------------------------------\\
 
-// only meant to be used on vectors (1-D matrices)
 // normalizes the given vector
 void normalize(Vector* vec, double magnitude) {
-    assert(vec->size == 1);
-
     for (int i = 0; i < vec->size; i++)
         vec->array[i] /= magnitude;
 }
 
-// only meant to be used on vectors (1-D matrices)
 // normalizes the given vector
 // and outputs the normalized values
 // in the given output vector
 void normalizeOut(Vector* vec, Vector* output, double magnitude) {
-    assert(vec->size == 1);
-    assert(output->size == 1);
     assert(vec->size == output->size);
 
     assert(magnitude > 0);
@@ -333,11 +352,8 @@ void normalizeOut(Vector* vec, Vector* output, double magnitude) {
     }
 }
 
-// only meant to be used on vectors (1-D matrices)
 // calculates the magnitude of the given vector
 double magnitude(Vector* vec) {
-    assert(vec->size == 1);
-
     double output = 0;
     for (int i = 0; i < vec->size; i++)
         output += vec->array[i] * vec->array[i];
@@ -346,13 +362,26 @@ double magnitude(Vector* vec) {
 }
 
 // uses power iteration to find the eigenVector
-// for the sparse matrix
+// for a sparse matrix
 // see https://en.wikipedia.org/wiki/Power_iteration
-void eigenVector(ParentArray* mat, Vector* eigenVec, int iterations) {
+void eigenVectorSparse(ParentArray* mat, Vector* eigenVec, int iterations) {
     Vector dot;
     for (int i = 0; i < iterations; i++) {
         initVec(&dot, eigenVec->size);
-        sparseDotFirst(mat, eigenVec, &dot);
+        sparseVecDot(mat, eigenVec, &dot);
+        normalizeOut(&dot, eigenVec, magnitude(&dot));
+        cleanVec(&dot);
+    }
+}
+
+// uses power iteration to find the eigenVector
+// for a dense matrix
+// see https://en.wikipedia.org/wiki/Power_iteration
+void eigenVectorDense(Matrix* mat, Vector* eigenVec, int iterations) {
+    Vector dot;
+    for (int i = 0; i < iterations; i++) {
+        initVec(&dot, eigenVec->size);
+        matVecDot(mat, eigenVec, &dot);
         normalizeOut(&dot, eigenVec, magnitude(&dot));
         cleanVec(&dot);
     }
@@ -365,10 +394,10 @@ void eigenVector(ParentArray* mat, Vector* eigenVec, int iterations) {
 double rayleighQuotient(ParentArray* sparse, Vector* vec) {
     Vector sparseDot;
     initVec(&sparseDot, vec->size);
-    sparseDotFirst(sparse, vec, &sparseDot);
+    sparseVecDot(sparse, vec, &sparseDot);
 
-    double num = colRowDot(vec, &sparseDot);
-    double den = colRowDot(vec, vec);
+    double num = vecDot(vec, &sparseDot);
+    double den = vecDot(vec, vec);
 
     return num / den;
 }

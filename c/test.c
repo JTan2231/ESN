@@ -26,11 +26,11 @@ int main() {
     srand(time(0));
 
     //printHeader("Matrix Initializations");
-    Matrix mat;
+    /*Matrix mat;
     Matrix mat2;
     Matrix out;
     Matrix transpose;
-    ParentArray sparse;
+    ParentArray sparse;*/
 
     /*printSubHeader("Zeros Matrix Initialization");
     initMat(&mat, 5, 5);
@@ -69,7 +69,7 @@ int main() {
     cleanMat(&mat);
     cleanMat(&transpose);*/
 
-    printHeader("Matrix Operations");
+    /*printHeader("Matrix Operations");
 
     printSubHeader("Square Matrix Multiplication");
     initRandomRange(&mat, 3, 3, 5);
@@ -120,7 +120,7 @@ int main() {
 
     cleanMat(&mat);
     cleanParentArray(&sparse);
-    cleanMat(&out);
+    cleanMat(&out);*/
 
     /*Parent p;
     initParent(&p, 5);
@@ -134,27 +134,22 @@ int main() {
         parentPrint(&p);
     }*/
 
-    /*ParentArray mat;
+    ParentArray mat;
     initSparse(&mat, 10, 10, 0.1);
-    Matrix vec;
-    initRandom(&vec, 1, 10);
+    Vector vec;
+    initVecRandom(&vec, 10);
     Matrix transpose;
-    Matrix out;
-    initMat(&out, 1, 10);
 
-    eigenVector(&mat, &vec, 15);
+    eigenVectorSparse(&mat, &vec, 15);
 
     printf("Sparse: \n");
     parentArrayPrint(&mat);
     printf("Eigenvector: \n");
-    printMat(&vec);
-    initTranspose(&vec, &transpose);
-    printf("Transpose: \n");
-    printMat(&transpose);
+    printVec(&vec);
 
     double eigenValue = rayleighQuotient(&mat, &vec);
 
-    printf("Spectral Radius: %.16f\n", eigenValue);*/
+    printf("Spectral Radius: %lf\n", eigenValue);
 
     /*eigenVector(&mat, &vec, 10);
 

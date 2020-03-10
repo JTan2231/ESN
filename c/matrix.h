@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <assert.h>
+#include <complex.h>
 #include "generation.h"
 #include "map.h"
 
@@ -113,12 +114,12 @@ void initRandomRange(Matrix* mat, int r, int c, int range) {
 }
 
 // uses normally distributed values
-// uses ParentArray as a list of columns
-// each nested Parent acting as a unique column
+// uses Sparse as a list of columns
+// each nested Column acting as a unique column
 // with a list of rows in which there is a value
 // for each row where there is a value in the sparse matrix
 // eliminates unnecessary storage of zeros
-void initSparse(ParentArray* mat, int r, int c, double density) {
+void initSparse(Sparse* mat, int r, int c, double density) {
     mat->array = malloc(sizeof mat->array);
     mat->arraySize = 1;
     mat->density = density;
@@ -133,23 +134,23 @@ void initSparse(ParentArray* mat, int r, int c, double density) {
     // to be filled
     while (count < total) {
         int column = randRange(c);
-        int in = parentArrayIn(mat, column);
+        int in = sparseIn(mat, column);
         if (in+1 != mat->arraySize) {
             // if the generated column number exists, check for row
             int row = randRange(r);
-            int in2 = parentInFirst(&(mat->array[in]), row);
+            int in2 = columnInFirst(&(mat->array[in]), row);
             if (in2 == 0) {
                 // row doesn't exist, add the value
-                parentAdd(&(mat->array[in]), row, marsagliaPolar());
+                columnAdd(&(mat->array[in]), row, marsagliaPolar());
                 count++;
             }
         }
         else {
             // make and add a new column
-            Parent p;
-            initParent(&p, column);
-            parentAdd(&p, randRange(r), marsagliaPolar());
-            parentArrayAdd(mat, &p);
+            Column p;
+            initColumn(&p, column);
+            columnAdd(&p, randRange(r), marsagliaPolar());
+            sparseAdd(mat, &p);
             count++;
         }
     }
@@ -175,6 +176,7 @@ void initVecRandomNormal(Vector* vec, int size) {
     vec->array = calloc(size, sizeof(vec->array));
     vec->size = size;
     
+    printf("check\n");
     for (int i = 0; i < size; i++)
         vec->array[i] = marsagliaPolar();
 }
@@ -191,6 +193,54 @@ void initTranspose(Matrix* mat, Matrix* matT) {
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < mat->cols; j++)
             matT->array[j][i] = mat->array[i][j];
+    }
+}
+
+void initClone(Matrix* mat, Matrix* clone) {
+    clone->array = calloc(mat->rows, sizeof(*(mat->array)));
+    for (int i = 0; i < mat->rows; i++)
+        clone->array[i] = calloc(mat->cols, sizeof(*(mat->array[i])));
+    
+    clone->rows = mat->rows;
+    clone->cols = mat->cols;
+
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            clone->array[i][j] = mat->array[i][j];
+    }
+}
+
+void initVecRow(Matrix* mat, int row, Vector* vec) {
+    vec->array = calloc(mat->rows, sizeof(vec->array));
+    vec->size = mat->rows;
+    
+    for (int i = 0; i < mat->rows; i++)
+        vec->array[i] = mat->array[row][i];
+}
+
+// initializes a vector from a matrix column
+void initVecCol(Matrix* mat, int col, Vector* vec) {
+    vec->array = calloc(mat->rows, sizeof(vec->array));
+    vec->size = mat->rows;
+    
+    for (int i = 0; i < mat->rows; i++)
+        vec->array[i] = mat->array[i][col];
+}
+
+void initSparseToMat(Sparse* sparse, Matrix* mat) {
+    mat->array = calloc(sparse->rows, sizeof(mat->array));
+    for (int i = 0; i < sparse->rows; i++)
+        mat->array[i] = calloc(sparse->cols, sizeof(*(mat->array[i])));
+
+    mat->rows = sparse->rows;
+    mat->cols = sparse->cols;
+
+    for (int j = 0; j < sparse->arraySize; j++) {
+        for (int i = 0; i < sparse->array[j].arraySize; i++) {
+            int matRow = sparse->array[j].array[i].first;
+            int matCol = sparse->array[j].value;
+            mat->array[matRow][matCol] = sparse->array[j].array[i].second;
+        }
     }
 }
 
@@ -218,6 +268,39 @@ void printVec(Vector* vec) {
 //--------------------------------------------------------\\
 // Arithmetic Operations                                  \\
 //--------------------------------------------------------\\
+
+void vecSub(Vector* v1, Vector* v2) {
+    assert(v1->size == v2->size);
+
+    for (int i = 0; i < v1->size; i++)
+        v1->array[i] -= v2->array[i];
+}
+
+void vecAdd(Vector* v1, Vector* v2) {
+    assert(v1->size == v2->size);
+    
+    for (int i = 0; i < v1->size; i++)
+        v1->array[i] += v2->array[i];
+}
+
+// multiply all elements of given vector
+// by given scalar
+void scalarVec(Vector* vec, double scalar) {
+    for (int i = 0; i < vec->size; i++)
+        vec->array[i] *= scalar;
+}
+
+// vec = vec - scalar
+void scalarVecSub(Vector* vec, double scalar) {
+    for (int i = 0; i < vec->size; i++)
+        vec->array[i] -= scalar;
+}
+
+// vec = vec / scalar
+void scalarVecDivOut(Vector* vec, double scalar, Vector* out) {
+    for (int i = 0; i < vec->size; i++)
+        out->array[i] = vec->array[i] / scalar;
+}
 
 // component function
 // for use in matDot
@@ -251,6 +334,14 @@ double matVecDotPartial(Matrix* mat, int row, Vector* vec) {
     return output;
 }
 
+double matVecDotPartialCol(Matrix* mat, int col, Vector* vec) {
+    double output = 0;
+    for (int i = 0; i < vec->size; i++)
+        output += mat->array[i][col] * vec->array[i];
+
+    return output;
+}
+
 void matVecDot(Matrix* mat, Vector* vec, Vector* out) {
     assert(mat->cols == vec->size);
     assert(mat->rows == out->size);
@@ -264,7 +355,7 @@ void matVecDot(Matrix* mat, Vector* vec, Vector* out) {
 // computes the dot product of 
 // a dense matrix row 
 // and sparse matrix column
-double sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
+double sparseDotPartial(Matrix* mat, int row, Sparse* sparse, int col) {
     double output = 0;
     for (int i = 0; i < sparse->array[col].arraySize; i++) {
         int sparseColIndex = sparse->array[col].array[i].first;
@@ -279,7 +370,7 @@ double sparseDotPartial(Matrix* mat, int row, ParentArray* sparse, int col) {
 
 // matrix multiplication == sparseMatrix * columnVector
 // This one is specifically for the above expression
-void sparseVecDot(ParentArray* sparse, Vector* vec, Vector* out) {
+void sparseVecDot(Sparse* sparse, Vector* vec, Vector* out) {
     assert(out->size == vec->size || out->size == sparse->cols || vec->size == sparse->rows);
 
     for (int i = 0; i < sparse->arraySize; i++) {
@@ -294,7 +385,7 @@ void sparseVecDot(ParentArray* sparse, Vector* vec, Vector* out) {
 }
 
 // matrix multiplication == denseMatrix * sparseMatrix
-void sparseDotSecond(Matrix* mat, ParentArray* sparse, Matrix* out) {
+void sparseDotSecond(Matrix* mat, Sparse* sparse, Matrix* out) {
     assert(mat->cols == sparse->rows);
     assert(out->rows == mat->rows);
     assert(out->cols == sparse->cols);
@@ -327,12 +418,20 @@ void set(Matrix* mat, double value, int row, int col) {
     mat->array[row][col] = value;
 }
 
+// assign matrix column from vector
+void assignMatColVec(Matrix* mat, int col, Vector* vec) {
+    assert(mat->rows == vec->size);
+    
+    for (int i = 0; i < mat->rows; i++)
+        mat->array[i][col] = vec->array[i];
+}
+
 //--------------------------------------------------------\\
 // Linear Algebra                                         \\
 //--------------------------------------------------------\\
 
 // normalizes the given vector
-void normalize(Vector* vec, double magnitude) {
+/*void normalize(Vector* vec, double magnitude) {
     for (int i = 0; i < vec->size; i++)
         vec->array[i] /= magnitude;
 }
@@ -364,7 +463,7 @@ double magnitude(Vector* vec) {
 // uses power iteration to find the eigenVector
 // for a sparse matrix
 // see https://en.wikipedia.org/wiki/Power_iteration
-void eigenVectorSparse(ParentArray* mat, Vector* eigenVec, int iterations) {
+void eigenVectorSparse(Sparse* mat, Vector* eigenVec, int iterations) {
     Vector dot;
     for (int i = 0; i < iterations; i++) {
         initVec(&dot, eigenVec->size);
@@ -391,7 +490,7 @@ void eigenVectorDense(Matrix* mat, Vector* eigenVec, int iterations) {
 // of the given eigenvector
 // presumably from power iteration
 // see https://en.wikipedia.org/wiki/Power_iteration
-double rayleighQuotient(ParentArray* sparse, Vector* vec) {
+double rayleighQuotient(Sparse* sparse, Vector* vec) {
     Vector sparseDot;
     initVec(&sparseDot, vec->size);
     sparseVecDot(sparse, vec, &sparseDot);
@@ -463,7 +562,6 @@ void inverse(Matrix* mat, Matrix* lower, Matrix* upper, Matrix* inverse) {
             inverse->array[i][column] = d.array[i][column] - sum;
         }
     }
-}
-
+}*/
 
 #endif

@@ -5,7 +5,8 @@
 #include "matrix.h"
 #include "map.h"
 #include "generation.h"
-#include "complex.h"
+#include "linalg.h"
+#include "esn.h"
 
 // rudimentary test file
 // to make sure everything works as expected
@@ -24,6 +25,40 @@ void printSubHeader(char subHeader[]) {
 
 int main() {
     srand(time(0));
+
+    ESN esn;
+    initWeights(&esn, 1, 25, 1);
+    printWeights(&esn);
+
+    /*Matrix mat;
+    initRandomRange(&mat, 5, 5, 50);
+    Matrix arnD;
+    initMat(&arnD, 5, 5);
+
+    ParentArray sparse;
+    initSparse(&sparse, 5, 5, 0.10);
+    Matrix arnS;
+    initMat(&arnS, 5, 5);
+    Matrix hessS;
+    initMat(&hessS, 5, 5);
+
+    arnoldiDense(&mat, &arnD);
+    printf("ArnoldiDense:\n");
+    printMat(&arnD);
+
+    arnoldiSparse(&sparse, &arnS);
+    printf("Sparse:\n");
+    sparsePrint(&sparse);
+    printf("ArnoldiSparse:\n");
+    printMat(&arnS);
+
+    printf("Orthogonality check:\n");
+    Matrix arnST;
+    initTranspose(&arnS, &arnST);
+    Matrix test;
+    initMat(&test, 5, 5);
+    matDot(&arnS, &arnST, &test);
+    printMat(&test);*/
 
     //printHeader("Matrix Initializations");
     /*Matrix mat;
@@ -134,13 +169,13 @@ int main() {
         parentPrint(&p);
     }*/
 
-    ParentArray mat;
-    initSparse(&mat, 10, 10, 0.1);
+    /*ParentArray mat;
+    initSparse(&mat, 25, 25, 0.1);
     Vector vec;
-    initVecRandom(&vec, 10);
+    initVecRandom(&vec, 25);
     Matrix transpose;
 
-    eigenVectorSparse(&mat, &vec, 15);
+    eigenVectorSparse(&mat, &vec, 10);
 
     printf("Sparse: \n");
     parentArrayPrint(&mat);
@@ -150,6 +185,18 @@ int main() {
     double eigenValue = rayleighQuotient(&mat, &vec);
 
     printf("Spectral Radius: %lf\n", eigenValue);
+
+    printf("Verification:\n");
+
+    Vector check;
+    initVec(&check, vec.size);
+    sparseVecDot(&mat, &vec, &check);
+    scalarVec(&vec, eigenValue);
+
+    printf("Altered Eigenvector:\n");
+    printVec(&vec);
+    printf("Sparse by Eigenvector:\n");
+    printVec(&check);*/
 
     /*eigenVector(&mat, &vec, 10);
 

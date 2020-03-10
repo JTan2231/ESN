@@ -22,47 +22,42 @@ typedef struct {
     Pair* array;
     int value;
     int arraySize;
-} Parent;
+} Column;
 
 // High level view of the sparse matrix
 // Contains info on the matrix
 // as well as the data itself
 typedef struct {
-    Parent* array;
+    Column* array;
     int arraySize;
     int cols;
     int rows;
     double density;
-} ParentArray;
+} Sparse;
 
 //------------------------------------\\
 // Initialization                     \\
 //------------------------------------\\
 
-void initParent(Parent* p, int value) {
+void initColumn(Column* p, int value) {
     p->array = malloc(sizeof p->array);
     p->array[0].first = -1;
     p->value = value;
     p->arraySize = 0;
 }
 
-void initParentArray(ParentArray* pa) {
-    pa->array = malloc(sizeof pa->array);
-    pa->arraySize = 0;
-}
-
 //------------------------------------\\
 // Cleanup                            \\
 //------------------------------------\\
 
-void cleanParent(Parent* p) {
+void cleanColumn(Column* p) {
     free(p->array);
     p->arraySize = 0;
 }
 
-void cleanParentArray(ParentArray* pa) {
+void cleanSparse(Sparse* pa) {
     for (int i = 0; i < pa->arraySize; i++)
-        cleanParent(&(pa->array[i]));
+        cleanColumn(&(pa->array[i]));
     free(pa->array);
     pa->arraySize = 0;
 }
@@ -75,8 +70,8 @@ void cleanParentArray(ParentArray* pa) {
 // are in an ascending sort order
 // Uniqueness is handled in initSparse(...)
 
-// add a value to the parent's child array
-void parentAdd(Parent* p, int first, double second) {
+// add a value to the Column's child array
+void columnAdd(Column* p, int first, double second) {
     if (p->arraySize == 0) {
         p->array = calloc(2, sizeof(Pair));
         p->array[0].first = first;
@@ -110,9 +105,9 @@ void parentAdd(Parent* p, int first, double second) {
     }
 }
 
-void parentArrayAdd(ParentArray* pa, Parent* p) {
+void sparseAdd(Sparse* pa, Column* p) {
     if (pa->arraySize == 1) {
-        pa->array = calloc(2, sizeof(Parent));
+        pa->array = calloc(2, sizeof(Column));
         pa->array[0] = *p;
         pa->arraySize++;
     }
@@ -126,7 +121,7 @@ void parentArrayAdd(ParentArray* pa, Parent* p) {
         }
 
         pa->arraySize++;
-        Parent* newArray = calloc(pa->arraySize, sizeof(Parent));
+        Column* newArray = calloc(pa->arraySize, sizeof(Column));
 
         for (int i = 0; i < index; i++)
             newArray[i] = pa->array[i];
@@ -146,20 +141,20 @@ void parentArrayAdd(ParentArray* pa, Parent* p) {
 // I/O                                \\
 //------------------------------------\\
 
-void parentPrint(Parent* p) {
+void columnPrint(Column* p) {
     printf("{ Column: %d }\n", p->value);
     for (int i = 0; i < p->arraySize; i++)
         printf("\tRow: %d\n\tValue: %.18lf\n", p->array[i].first, p->array[i].second);
 }
 
-void parentArrayPrint(ParentArray* pa) {
+void sparsePrint(Sparse* pa) {
     printf("Rows: %d\n", pa->rows);
     printf("Columns: %d\n", pa->cols);
     printf("Density: %lf\n", pa->density);
     printf("[ \n");
     for (int i = 0; i < pa->arraySize-1; i++) {
         printf("\t");
-        parentPrint(&(pa->array[i]));
+        columnPrint(&(pa->array[i]));
         printf("\n");
     }
     printf("]\n");
@@ -167,28 +162,28 @@ void parentArrayPrint(ParentArray* pa) {
 
 // TODO: comment on what these actually do
 
-int parentArrayIn(ParentArray* pa, int value) {
+int sparseIn(Sparse* pa, int value) {
     int output = 0;
     for (int i = 0; i < pa->arraySize && pa->array[i].value != value; i++)
         output = i;
     return output;
 }
 
-int parentInFirst(Parent* p, int value) {
+int columnInFirst(Column* p, int value) {
     int output = 0;
     for (int i = 0; i < p->arraySize; i++)
         if (p->array[i].first == value) return ++output;
     return output;
 }
 
-int parentInSecond(Parent* p, int value) {
+int columnInSecond(Column* p, int value) {
     int output = 0;
     for (int i = 0; i < p->arraySize && p->array[i].second != value; i++)
         output = i;
     return output;
 }
 
-int parentIn(Parent* p, int first, int second) {
+int columnIn(Column* p, int first, int second) {
     int output = 0;
     for (int i = 0;
          i < p->arraySize && p->array[i].first != first && p->array[i].second != second;

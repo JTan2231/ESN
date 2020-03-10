@@ -49,6 +49,7 @@ double randomDouble() {
 // Statistics                         \\
 //------------------------------------\\
 
+// TODO: -1 < x < 1
 double normal(double x) {
     const double mean = 0;
     const double variance = 1;

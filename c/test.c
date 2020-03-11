@@ -39,46 +39,55 @@ int main() {
     printMat(&m3);*/
 
     Matrix mat;
-    //initRandomRange(&mat, 5, 5, 50);
-    initMat(&mat, 5, 5);
-    set(&mat, -0.17, 0, 2);
-    set(&mat, 2.26, 4, 2);
+    /*initRandomRange(&mat, 50, 50, 50);
+    //initMat(&mat, 5, 5);
+    //set(&mat, -0.17, 0, 2);
+    //set(&mat, 2.26, 4, 2);
     Matrix arnD, arnDH;
-    initMat(&arnD, 5, 5);
-    initMat(&arnDH, 5, 5);
+    initMat(&arnD, 50, 50);
+    initMat(&arnDH, 50, 50);*/
 
     Sparse sparse;
-    initSparse(&sparse, 5, 5, 0.1);
+    initSparse(&sparse, 5, 5, 0.25);
     Matrix arnSQ, arnSH;
     initMat(&arnSQ, 5, 5);
     initMat(&arnSH, 5, 5);
-    Matrix hessS;
-    initMat(&hessS, 5, 5);
 
-    arnoldiDense(&mat, &arnD, &arnDH);
+    /*arnoldiDense(&mat, &arnD, &arnDH);
     printf("ArnoldiDense:\n");
-    printMat(&arnD);
+    printMat(&arnD);*/
 
     Matrix test;
-    printf("Dense Orthogonality Check:\n");
+    /*printf("Dense Orthogonality Check:\n");
     Matrix arnDT;
     initTranspose(&arnD, &arnDT);
-    initMat(&test, 5, 5);
+    initMat(&test, 50, 50);
     matDot(&arnD, &arnDT, &test);
     printMat(&test);
-    cleanMat(&test);
+    cleanMat(&test);*/
 
     arnoldiSparse(&sparse, &arnSQ, &arnSH);
+    Matrix arnSQT;
+    initTranspose(&arnSQ, &arnSQT);
     printf("Sparse:\n");
     sparsePrint(&sparse);
     printf("ArnoldiSparse:\n");
-    printMat(&arnSH);
+    printMat(&arnSQ);
+    printf("Transpose:\n");
+    printMat(&arnSQT);
 
-    printf("Sparse Orthogonality Check:\n");
-    Matrix arnSHT;
-    initTranspose(&arnSH, &arnSHT);
-    initMat(&test, 5, 5);
-    matDot(&arnSH, &arnSHT, &test);
+    printf("Sparse Orthogonality Check 1:\n");
+    //printf("Transpose:\n");
+    //printMat(&arnSQT);
+    initMat(&test, arnSQT.rows, arnSQ.cols);
+    matDot(&arnSQT, &arnSQ, &test);
+    printMat(&test);
+    
+    cleanMat(&test);
+    
+    printf("Sparse Orthogonality Check 2:\n");
+    initMat(&test, arnSQ.rows, arnSQT.cols);
+    matDot(&arnSQ, &arnSQT, &test);
     printMat(&test);
 
     //printHeader("Matrix Initializations");

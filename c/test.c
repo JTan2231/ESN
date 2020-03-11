@@ -39,22 +39,22 @@ int main() {
     printMat(&m3);*/
 
     Matrix mat;
-    /*initRandomRange(&mat, 50, 50, 50);
+    initRandomRange(&mat, 5, 5, 50);
     //initMat(&mat, 5, 5);
     //set(&mat, -0.17, 0, 2);
     //set(&mat, 2.26, 4, 2);
     Matrix arnD, arnDH;
-    initMat(&arnD, 50, 50);
-    initMat(&arnDH, 50, 50);*/
+    initMat(&arnD, 5, 5);
+    initMat(&arnDH, 5, 5);
 
     Sparse sparse;
-    initSparse(&sparse, 5, 5, 0.25);
+    initSparse(&sparse, 5, 5, 0.3);
     Matrix arnSQ, arnSH;
-    initMat(&arnSQ, 5, 5);
-    initMat(&arnSH, 5, 5);
+    initMat(&arnSQ, sparse.rows, sparse.cols);
+    initMat(&arnSH, sparse.rows, sparse.cols);
 
-    /*arnoldiDense(&mat, &arnD, &arnDH);
-    printf("ArnoldiDense:\n");
+    arnoldiDense(&mat, &arnD, &arnDH);
+    /*printf("ArnoldiDense:\n");
     printMat(&arnD);*/
 
     Matrix test;
@@ -66,17 +66,24 @@ int main() {
     printMat(&test);
     cleanMat(&test);*/
 
-    arnoldiSparse(&sparse, &arnSQ, &arnSH);
+    //arnoldiSparse(&sparse, &arnSQ, &arnSH);
     Matrix arnSQT;
     initTranspose(&arnSQ, &arnSQT);
-    printf("Sparse:\n");
+    initMat(&test, arnSQ.rows, arnSQ.cols);
+    /*printf("Sparse:\n");
     sparsePrint(&sparse);
     printf("ArnoldiSparse:\n");
-    printMat(&arnSQ);
-    printf("Transpose:\n");
-    printMat(&arnSQT);
+    printMat(&arnSQ);*/
+    printf("dense Hessenberg:\n");
+    printMat(&arnDH);
+    /*printf("Transpose:\n");
+    printMat(&arnSQT);*/
+    
+    /*printf("QR Algorithm:\n");
+    qrSparse(&arnSH, &arnSQ, &test);
+    printMat(&test);*/
 
-    printf("Sparse Orthogonality Check 1:\n");
+    /*printf("Sparse Orthogonality Check 1:\n");
     //printf("Transpose:\n");
     //printMat(&arnSQT);
     initMat(&test, arnSQT.rows, arnSQ.cols);
@@ -88,7 +95,7 @@ int main() {
     printf("Sparse Orthogonality Check 2:\n");
     initMat(&test, arnSQ.rows, arnSQT.cols);
     matDot(&arnSQ, &arnSQT, &test);
-    printMat(&test);
+    printMat(&test);*/
 
     //printHeader("Matrix Initializations");
     /*Matrix mat;

@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-18-20
- * Last Edit: 3-4-20, Joey Tan
+ * Last Edit: 3-11-20, Joey Tan
  */
 
 #ifndef MATRIX
@@ -188,12 +188,12 @@ void initTranspose(Matrix* mat, Matrix* matT) {
     for (int i = 0; i < mat->rows; i++)
         matT->array[i] = calloc(mat->cols, sizeof(*(mat->array[i])));
     
-    matT->rows = mat->rows;
-    matT->cols = mat->cols;
+    matT->rows = mat->cols;
+    matT->cols = mat->rows;
 
-    for (int i = 0; i < mat->rows; i++) {
-        for (int j = 0; j < mat->cols; j++)
-            matT->array[j][i] = mat->array[i][j];
+    for (int i = 0; i < matT->rows; i++) {
+        for (int j = 0; j < matT->cols; j++)
+            matT->array[i][j] = mat->array[j][i];
     }
 }
 
@@ -543,6 +543,24 @@ void cloneVec(Vector* v1, Vector* v2) {
 
     for (int i = 0; i < v1->size; i++)
         v2->array[i] = v1->array[i];
+}
+
+// reshape but only shrinking dimensions
+void shrinkMat(Matrix* mat, int rows, int cols) {
+    double** newArray = calloc(rows, sizeof(*newArray));
+    for (int i = 0; i < rows; i++)
+        newArray[i] = calloc(cols, sizeof(*newArray[i]));
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++)
+            newArray[i][j] = mat->array[i][j];
+    }
+    
+    cleanMat(mat);
+    
+    mat->array = newArray;
+    mat->rows = rows;
+    mat->cols = cols;
 }
 
 //--------------------------------------------------------\\

@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 3-7-20
- * Last Edit: 3-7-20, Joey Tan
+ * Last Edit: 3-11-20, Joey Tan
  */
 
 #ifndef LINALG
@@ -68,7 +68,6 @@ void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
     initVec(&q, b.size);
     normalizeOut(&b, &q, magnitude(&b));
     for (int i = 0; i < mat->rows; i++) {
-        printf("Iteration %d\n", i);
         assignMatColVec(Q, i, &q);
         Vector temp;
         initVec(&temp, mat->rows);
@@ -112,8 +111,6 @@ void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
     initVec(&q, b.size);
     normalizeOut(&b, &q, magnitude(&b));
     for (int i = 0; i < sparse->rows; i++) {
-        printf("q:\n");
-        printVec(&q);
         assignMatColVec(Q, i, &q);
         cleanVec(&q);
         initVec(&q, b.size);
@@ -131,14 +128,17 @@ void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
             cleanVec(&qj);
         }
 
-        printf("q after subtraction:\n");
         printVec(&q);
         double mag = magnitude(&q);
-        printf("||q||: %lf\n", mag);
         H->array[i][i-1] = mag;
         
-        if (mag < 0.00000005)
+        if (mag < 0.0000000012) {
+            // if Q isn't square 
+            if (i != sparse->rows - 1)
+                shrinkMat(Q, sparse->rows, i+1);
             return;
+        }
+        
         scalarVecDivOut(&q, mag, &q);
 
         cleanVec(&temp);

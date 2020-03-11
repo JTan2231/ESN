@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 3-7-20
- * Last Edit: 3-11-20, Joey Tan
+ * Last Edit: 3-7-20, Joey Tan
  */
 
 #ifndef LINALG
@@ -110,29 +110,35 @@ void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
     initVecRandom(&b, sparse->cols);
     initVec(&q, b.size);
     normalizeOut(&b, &q, magnitude(&b));
-    for (int i = 0; i < sparse->rows; i++) {
-        assignMatColVec(Q, i, &q);
+    assignMatColVec(Q, 0, &q);
+    for (int i = 1; i < sparse->rows; i++) {
         cleanVec(&q);
         initVec(&q, b.size);
         Vector temp;
         initVec(&temp, sparse->rows);
-        assignVecMatCol(&temp, i, Q);
+        assignVecMatCol(&temp, i-1, Q);
         sparseVecDot(sparse, &temp, &q);
 
         for (int j = 0; j <= i; j++) {
+            printf("i, j: %d, %d\n", i, j);
             Vector qj;
             initVecCol(Q, j, &qj);
             H->array[j][i] = vecDot(&qj, &q);
+            printf("q:\n");
+            printVec(&q);
+            printf("qj:\n");
+            printVec(&qj);
+            printf("H[j][i]: %.16lf\n", H->array[j][i]);
             scalarVec(&qj, H->array[j][i]);
             vecSub(&q, &qj);
             cleanVec(&qj);
         }
-
-        printVec(&q);
+        
         double mag = magnitude(&q);
         H->array[i][i-1] = mag;
         
         if (mag < 0.0000000012) {
+            printf("ZERO MAGNITUDE\n");
             // if Q isn't square 
             if (i != sparse->rows - 1)
                 shrinkMat(Q, sparse->rows, i+1);
@@ -140,12 +146,38 @@ void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
         }
         
         scalarVecDivOut(&q, mag, &q);
+        assignMatColVec(Q, i, &q);
 
         cleanVec(&temp);
     }
 
     cleanVec(&b);
     cleanVec(&q);
+}
+
+void qrSparse(Matrix* hess, Matrix* orth, Matrix* out) {
+    assert(out->rows == hess->rows);// == orth->rows);
+    assert(out->cols == orth->cols);// == orth->cols);
+    
+    int iterations = 1000;
+    Matrix temp, orthT;
+    
+    initTranspose(orth, &orthT);
+    initMat(&temp, orth->cols, hess->cols);
+        
+    matDot(&orthT, hess, &temp);
+    matDot(&temp, orth, out);
+    
+    cleanMat(&temp);
+    
+    for (int i = 0; i < iterations-1; i++) {
+        initMat(&temp, orth->rows, hess->cols);
+        
+        matDot(&orthT, out, &temp);
+        matDot(&temp, orth, out);
+        
+        cleanMat(&temp);
+    }
 }
 
 void hessenbergSparse(Matrix* arn, Sparse* sparse, Matrix* out) {

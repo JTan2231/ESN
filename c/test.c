@@ -26,39 +26,60 @@ void printSubHeader(char subHeader[]) {
 int main() {
     srand(time(0));
 
-    ESN esn;
-    initWeights(&esn, 1, 25, 1);
-    printWeights(&esn);
+    /*ESN esn;
+    initNet(&esn, 1, 25, 1);
+    //printWeights(&esn);
 
-    /*Matrix mat;
-    initRandomRange(&mat, 5, 5, 50);
-    Matrix arnD;
+    Matrix m1, m2, m3;
+    initRandomNormal(&m1, 5, 7);
+    initRandomNormal(&m2, 7, 1);
+    initMat(&m3, 1, 5);
+
+    matDot(&m1, &m2, &m3);
+    printMat(&m3);*/
+
+    Matrix mat;
+    //initRandomRange(&mat, 5, 5, 50);
+    initMat(&mat, 5, 5);
+    set(&mat, -0.17, 0, 2);
+    set(&mat, 2.26, 4, 2);
+    Matrix arnD, arnDH;
     initMat(&arnD, 5, 5);
+    initMat(&arnDH, 5, 5);
 
-    ParentArray sparse;
-    initSparse(&sparse, 5, 5, 0.10);
-    Matrix arnS;
-    initMat(&arnS, 5, 5);
+    Sparse sparse;
+    initSparse(&sparse, 5, 5, 0.1);
+    Matrix arnSQ, arnSH;
+    initMat(&arnSQ, 5, 5);
+    initMat(&arnSH, 5, 5);
     Matrix hessS;
     initMat(&hessS, 5, 5);
 
-    arnoldiDense(&mat, &arnD);
+    arnoldiDense(&mat, &arnD, &arnDH);
     printf("ArnoldiDense:\n");
     printMat(&arnD);
 
-    arnoldiSparse(&sparse, &arnS);
+    Matrix test;
+    printf("Dense Orthogonality Check:\n");
+    Matrix arnDT;
+    initTranspose(&arnD, &arnDT);
+    initMat(&test, 5, 5);
+    matDot(&arnD, &arnDT, &test);
+    printMat(&test);
+    cleanMat(&test);
+
+    arnoldiSparse(&sparse, &arnSQ, &arnSH);
     printf("Sparse:\n");
     sparsePrint(&sparse);
     printf("ArnoldiSparse:\n");
-    printMat(&arnS);
+    printMat(&arnSH);
 
-    printf("Orthogonality check:\n");
-    Matrix arnST;
-    initTranspose(&arnS, &arnST);
-    Matrix test;
+    printf("Sparse Orthogonality Check:\n");
+    Matrix arnSHT;
+    initTranspose(&arnSH, &arnSHT);
     initMat(&test, 5, 5);
-    matDot(&arnS, &arnST, &test);
-    printMat(&test);*/
+    matDot(&arnSH, &arnSHT, &test);
+    printMat(&test);
 
     //printHeader("Matrix Initializations");
     /*Matrix mat;

@@ -3,38 +3,50 @@
 #include "matrix.h"
 
 typedef struct {
+    Matrix* inputs;
+    Sparse* reservoir;
+    Matrix* outputs;
+    Matrix* feedback;
+} Weights;
+
+typedef struct {
     int step;
     Vector currentState;
     Vector currentExtState;
     Vector output;
     Matrix extStateCollection;
     Matrix extTeacherCollection;
-    Matrix inputs;
-    Sparse reservoir;
-    Matrix outputs;
-    Matrix feedback;
+    Weights* weights;
 } ESN;
 
+void initWeights(Weights* weights, int inputs, int resSize, int outputs) {
+    weights->inputs = malloc(sizeof weights->inputs);
+    weights->reservoir = malloc(sizeof weights->reservoir);
+    weights->outputs = malloc(sizeof weights->outputs);
+    weights->feedback = malloc(sizeof weights->feedback);
+}
+
 // TODO: 0 < spectral radius < 1
-void initWeights(ESN* esn, int inputs, int resSize, int outputs) {
-    int rows = 10;
-    int cols = 10;
+void initNet(ESN* esn, int inputs, int resSize, int outputs) {
+    esn->weights = malloc(sizeof esn->weights);
+    initWeights(esn->weights, inputs, resSize, outputs);
+
+    initRandomNormal(esn->weights->inputs, resSize, inputs);
+    initSparse(esn->weights->reservoir, resSize, resSize, 0.1);
+    initRandomNormal(esn->weights->outputs, outputs, resSize + inputs);
+    initRandomNormal(esn->weights->feedback, resSize, outputs);
     printf("Initialized\n");
-    initRandomNormal(&(esn->inputs), resSize, inputs);
-    initSparse(&(esn->reservoir), resSize, resSize, 0.1);
-    initRandomNormal(&(esn->outputs), outputs, resSize + inputs);
-    initRandomNormal(&(esn->feedback), resSize, outputs);
 }
 
 void printWeights(ESN* esn) {
     printf("Inputs:\n");
-    printMat(&(esn->inputs));
+    printMat(esn->weights->inputs);
     printf("Reservoir:\n");
-    sparsePrint(&(esn->reservoir));
+    sparsePrint(esn->weights->reservoir);
     printf("Outputs:\n");
-    printMat(&(esn->outputs));
+    printMat(esn->weights->outputs);
     printf("Feedback:\n");
-    printMat(&(esn->feedback));
+    printMat(esn->weights->feedback);
 }
 
 // applies logistic function to a vector

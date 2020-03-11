@@ -26,6 +26,7 @@ typedef struct {
 } Vector;
 
 // TODO: Organizing this file
+// TODO: EIGENVALUES
 // TODO: Tikhonov Regularization
 
 //----------------------------------------\\
@@ -265,6 +266,59 @@ void printVec(Vector* vec) {
     printf("]\n");
 }
 
+void convertMatToVec(Matrix* mat, Vector* vec) {
+    int a = mat->rows == vec->size;
+    int b = mat->cols == 1;
+    int c = mat->rows == 1;
+    int d = mat->cols == vec->size;
+
+    assert(a && b && !(c && d) || !(a && b) && c && d);
+
+    if (a && b) {
+        for (int i = 0; i < vec->size; i++)
+            vec->array[i] = mat->array[i][0];
+        return;
+    }
+    else if (c && d) {
+        for (int i = 0; i < vec->size; i++)
+            vec->array[i] = mat->array[0][i];
+        return;
+    }
+}
+
+int checkConvert(Matrix* mat, Vector* vec) {
+    if (mat->rows == 1) {
+        initVec(vec, mat->cols);
+        for (int i = 0; i < mat->cols; i++)
+            vec->array[i] = mat->array[0][i];
+        return 1;
+    }
+    else if (mat->cols == 1) {
+        initVec(vec, mat->rows);
+        for (int i = 0; i < mat->rows; i++)
+            vec->array[i] = mat->array[i][0];
+        return 1;
+    }
+    
+    return 0;
+}
+
+void convertVecToMat(Vector* vec, Matrix* mat) {
+    int rows = vec->size == mat->rows;
+    int cols = vec->size == mat->cols;
+    int correct = mat->rows > 1 && mat->cols == 1 || mat->cols > 1 && mat->rows == 1;
+    assert((rows || cols) && correct);
+
+    if (rows) {
+        for (int i = 0; i < vec->size; i++)
+            mat->array[i][0] = vec->array[i];
+    }
+    else if (cols) {
+        for (int i = 0; i < vec->size; i++)
+            mat->array[0][i] = vec->array[i];
+    }
+}
+
 //--------------------------------------------------------\\
 // Arithmetic Operations                                  \\
 //--------------------------------------------------------\\
@@ -302,6 +356,18 @@ void scalarVecDivOut(Vector* vec, double scalar, Vector* out) {
         out->array[i] = vec->array[i] / scalar;
 }
 
+// vector dot == columnVector dot rowVector
+// dot product 
+// of matrix representations 
+// of vectors
+double vecDot(Vector* col, Vector* row) {
+    double out = 0;
+    for (int i = 0; i < col->size; i++)
+        out += col->array[i] * row->array[i];
+
+    return out;
+}
+
 // component function
 // for use in matDot
 // dot product of m1 row and m2 column
@@ -313,20 +379,7 @@ double matDotPartial(Matrix* m1, int row, Matrix* m2, int col) {
     return output;
 }
 
-// general matrix multiplication function
-// not for use with vectors
-void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
-    assert(m1->cols == m2->rows);
-    assert(m3->rows == m1->rows);
-    assert(m3->cols == m2->cols);
-
-    for (int i = 0; i < m1->rows; i++) {
-        for (int j = 0; j < m2->cols; j++)
-            m3->array[i][j] = matDotPartial(m1, i, m2, j);
-    }
-}
-
-double matVecDotPartial(Matrix* mat, int row, Vector* vec) {
+double matVecDotPartialRow(Matrix* mat, int row, Vector* vec) {
     double output = 0;
     for (int i = 0; i < vec->size; i++)
         output += mat->array[row][i] * vec->array[i];
@@ -347,7 +400,71 @@ void matVecDot(Matrix* mat, Vector* vec, Vector* out) {
     assert(mat->rows == out->size);
 
     for (int i = 0; i < out->size; i++)
-        out->array[i] = matVecDotPartial(mat, i, vec);
+        out->array[i] = matVecDotPartialRow(mat, i, vec);
+}
+
+void vecMatDot(Vector* vec, Matrix* mat, Vector* out) {
+    assert(vec->size == mat->rows);
+    printf("out->size: %d\n", out->size);
+    assert(mat->cols == out->size);
+
+    for (int i = 0; i < vec->size; i++)
+        out->array[i] = matVecDotPartialCol(mat, i, vec);
+}
+
+// general matrix multiplication function
+// not for use with vectors
+void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
+    Vector v1, v2, out;
+
+    int m1Vec = m1->cols == 1 && m1->rows != 1 || m1->cols != 1 && m1->rows == 1;
+    int m2Vec = m2->cols == 1 && m2->rows != 1 || m2->cols != 1 && m2->rows == 1;
+
+    if (m1Vec && m2Vec) {
+        printf("Check 1\n");
+        assert(m3->rows == 1 && m3->cols == 1);
+
+        initVec(&v1, m1->cols);
+        initVec(&v2, m2->rows);
+        convertMatToVec(m1, &v1);
+        convertMatToVec(m2, &v2);
+        
+        m3->array[0][0] = vecDot(&v1, &v2);
+
+        cleanVec(&v1);
+        cleanVec(&v2);
+
+        return;
+    }
+
+    else if (checkConvert(m1, &v1)) {
+        printf("Check 2\n");
+        initVec(&out, m2->cols);
+        vecMatDot(&v1, m2, &out);
+        convertVecToMat(&out, m3);
+        cleanVec(&out);
+        cleanVec(&v1);
+        return;
+    }
+
+    else if (checkConvert(m2, &v1)) {
+        printf("Check 3\n");
+        initVec(&out, m1->rows);
+        matVecDot(m1, &v1, &out);
+        convertVecToMat(&out, m3);
+        cleanVec(&out);
+        cleanVec(&v1);
+        return;
+    }
+
+    assert(m1->cols == m2->rows);
+    assert(m3->rows == m1->rows);
+    assert(m3->cols == m2->cols);
+
+    for (int i = 0; i < m1->rows; i++) {
+        for (int j = 0; j < m2->cols; j++)
+            m3->array[i][j] = matDotPartial(m1, i, m2, j);
+    }
 }
 
 // component function
@@ -369,7 +486,6 @@ double sparseDotPartial(Matrix* mat, int row, Sparse* sparse, int col) {
 }
 
 // matrix multiplication == sparseMatrix * columnVector
-// This one is specifically for the above expression
 void sparseVecDot(Sparse* sparse, Vector* vec, Vector* out) {
     assert(out->size == vec->size || out->size == sparse->cols || vec->size == sparse->rows);
 
@@ -377,7 +493,7 @@ void sparseVecDot(Sparse* sparse, Vector* vec, Vector* out) {
         for (int j = 0; j < sparse->array[i].arraySize; j++) {
             int sparseCol = sparse->array[i].value;
             double sparseValue = sparse->array[i].array[j].second;
-            double matrixValue = vec->array[sparse->array[i].value];
+            double matrixValue = vec->array[sparseCol];
 
             out->array[sparseCol] +=  sparseValue * matrixValue;
         }
@@ -396,18 +512,6 @@ void sparseDotSecond(Matrix* mat, Sparse* sparse, Matrix* out) {
     }
 }
 
-// vector dot == columnVector dot rowVector
-// dot product 
-// of matrix representations 
-// of vectors
-double vecDot(Vector* col, Vector* row) {
-    double out = 0;
-    for (int i = 0; i < col->size; i++)
-        out += col->array[i] * row->array[i];
-
-    return out;
-}
-
 //--------------------------------------------------------\\
 // Manipulation                                           \\
 //--------------------------------------------------------\\
@@ -424,6 +528,21 @@ void assignMatColVec(Matrix* mat, int col, Vector* vec) {
     
     for (int i = 0; i < mat->rows; i++)
         mat->array[i][col] = vec->array[i];
+}
+
+// assign vector from matrix column
+void assignVecMatCol(Vector* vec, int col, Matrix* mat) {
+    assert(mat->rows == vec->size);
+
+    for (int i = 0; i < mat->rows; i++)
+        vec->array[i] = mat->array[i][col];
+}
+
+void cloneVec(Vector* v1, Vector* v2) {
+    assert(v1->size == v2->size);
+
+    for (int i = 0; i < v1->size; i++)
+        v2->array[i] = v1->array[i];
 }
 
 //--------------------------------------------------------\\

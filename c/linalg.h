@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 3-7-20
- * Last Edit: 3-7-20, Joey Tan
+ * Last Edit: 3-12-20, Joey Tan
  */
 
 #ifndef LINALG
@@ -40,11 +40,8 @@ void normalizeOut(Vector* vec, Vector* output, double magnitude) {
 double magnitude(Vector* vec) {
     double output = 0;
     for (int i = 0; i < vec->size; i++) {
-        printf("Current square value: %.16lf\n", vec->array[i]);
         output += vec->array[i] * vec->array[i];
     }
-
-    printf("Sum of squares: %.16lf\n", output);
 
     return sqrt(output);
 }
@@ -59,107 +56,85 @@ double magnitude(Vector* vec) {
 // a dense version because I'm an idiot
 void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
     assert(mat->rows == Q->rows);
-    assert(mat->cols == H->cols);
+    assert(mat->cols == H->rows-1);
     assert(mat->rows == mat->cols);
- 
-    Vector b;
-    Vector q;
-    initVecRandom(&b, mat->cols);
-    initVec(&q, b.size);
+
+    Vector b, q, v;
+    initVec(&q, mat->rows);
+    initVecRandomNormal(&b, mat->rows);
     normalizeOut(&b, &q, magnitude(&b));
     for (int i = 0; i < mat->rows; i++) {
+        initVec(&v, mat->rows);
+        matVecDot(mat, &q, &v);
         assignMatColVec(Q, i, &q);
-        Vector temp;
-        initVec(&temp, mat->rows);
-        cloneVec(&q, &temp);
-        matVecDot(mat, &temp, &q);
-
+        
         for (int j = 0; j <= i; j++) {
             Vector qj;
-            initVecCol(Q, j, &qj);
-            H->array[j][i] = vecDot(&qj, &q);
+            initVec(&qj, Q->rows);
+            assignVecMatCol(&qj, j, Q);
+            H->array[j][i] = vecDot(&qj, &v);
             scalarVec(&qj, H->array[j][i]);
-            vecSub(&q, &qj);
+            vecSub(&v, &qj);
             cleanVec(&qj);
         }
-
-        double mag = magnitude(&q);
-        H->array[i][i-1] = mag;
         
-        if (mag < 0.00000005) {
+        double mag = magnitude(&v);
+        H->array[i+1][i] = mag;
+        if (mag < 0.00000000012) {
             printf("ZERO MAGNITUDE\n");
+            //shrinkMat(H, sparse->rows, sparse->cols);
             return;
         }
-        scalarVecDivOut(&q, mag, &q);
-
-        cleanVec(&temp);
+        
+        scalarVecDivOut(&v, mag, &q);
+        cleanVec(&v);
     }
-
-    cleanVec(&b);
-    cleanVec(&q);
-
 }
 
 void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
     assert(sparse->rows == Q->rows);
-    assert(sparse->cols == H->cols);
+    assert(sparse->cols == H->rows-1);
     assert(sparse->rows == sparse->cols);
 
-    Vector b;
-    Vector q;
-    initVecRandom(&b, sparse->cols);
-    initVec(&q, b.size);
+    Vector b, q, v;
+    initVec(&q, sparse->rows);
+    initVecRandomNormal(&b, sparse->rows);
     normalizeOut(&b, &q, magnitude(&b));
-    assignMatColVec(Q, 0, &q);
-    for (int i = 1; i < sparse->rows; i++) {
-        cleanVec(&q);
-        initVec(&q, b.size);
-        Vector temp;
-        initVec(&temp, sparse->rows);
-        assignVecMatCol(&temp, i-1, Q);
-        sparseVecDot(sparse, &temp, &q);
-
+    for (int i = 0; i < sparse->rows; i++) {
+        initVec(&v, sparse->rows);
+        sparseVecDot(sparse, &q, &v);
+        assignMatColVec(Q, i, &q);
+        
         for (int j = 0; j <= i; j++) {
-            printf("i, j: %d, %d\n", i, j);
             Vector qj;
-            initVecCol(Q, j, &qj);
-            H->array[j][i] = vecDot(&qj, &q);
-            printf("q:\n");
-            printVec(&q);
-            printf("qj:\n");
-            printVec(&qj);
-            printf("H[j][i]: %.16lf\n", H->array[j][i]);
+            initVec(&qj, Q->rows);
+            assignVecMatCol(&qj, j, Q);
+            H->array[j][i] = vecDot(&qj, &v);
             scalarVec(&qj, H->array[j][i]);
-            vecSub(&q, &qj);
+            vecSub(&v, &qj);
             cleanVec(&qj);
         }
         
-        double mag = magnitude(&q);
-        H->array[i][i-1] = mag;
-        
-        if (mag < 0.0000000012) {
+        double mag = magnitude(&v);
+        H->array[i+1][i] = mag;
+        if (mag < 0.00000000012) {
             printf("ZERO MAGNITUDE\n");
-            // if Q isn't square 
-            if (i != sparse->rows - 1)
-                shrinkMat(Q, sparse->rows, i+1);
+            //shrinkMat(H, sparse->rows, sparse->cols);
             return;
         }
         
-        scalarVecDivOut(&q, mag, &q);
-        assignMatColVec(Q, i, &q);
-
-        cleanVec(&temp);
+        scalarVecDivOut(&v, mag, &q);
+        cleanVec(&v);
     }
-
-    cleanVec(&b);
-    cleanVec(&q);
+    
+    //shrinkMat(H, sparse->rows, sparse->cols);
 }
 
 void qrSparse(Matrix* hess, Matrix* orth, Matrix* out) {
     assert(out->rows == hess->rows);// == orth->rows);
     assert(out->cols == orth->cols);// == orth->cols);
     
-    int iterations = 1000;
+    int iterations = 10;
     Matrix temp, orthT;
     
     initTranspose(orth, &orthT);

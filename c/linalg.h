@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 3-7-20
- * Last Edit: 3-12-20, Joey Tan
+ * Last Edit: 3-13-20, Joey Tan
  */
 
 #ifndef LINALG
@@ -10,6 +10,8 @@
 #include <stdio.h>
 #include "matrix.h"
 #include "map.h"
+
+// TODO: clean your room
 
 //--------------------------------------------------------\\
 // Basic Vector Operations                                \\
@@ -81,8 +83,8 @@ void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
         double mag = magnitude(&v);
         H->array[i+1][i] = mag;
         if (mag < 0.00000000012) {
+            assert(i == mat->rows-1);
             printf("ZERO MAGNITUDE\n");
-            //shrinkMat(H, sparse->rows, sparse->cols);
             return;
         }
         
@@ -92,42 +94,10 @@ void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
 }
 
 void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
-    assert(sparse->rows == Q->rows);
-    assert(sparse->cols == H->rows-1);
-    assert(sparse->rows == sparse->cols);
-
-    Vector b, q, v;
-    initVec(&q, sparse->rows);
-    initVecRandomNormal(&b, sparse->rows);
-    normalizeOut(&b, &q, magnitude(&b));
-    for (int i = 0; i < sparse->rows; i++) {
-        initVec(&v, sparse->rows);
-        sparseVecDot(sparse, &q, &v);
-        assignMatColVec(Q, i, &q);
-        
-        for (int j = 0; j <= i; j++) {
-            Vector qj;
-            initVec(&qj, Q->rows);
-            assignVecMatCol(&qj, j, Q);
-            H->array[j][i] = vecDot(&qj, &v);
-            scalarVec(&qj, H->array[j][i]);
-            vecSub(&v, &qj);
-            cleanVec(&qj);
-        }
-        
-        double mag = magnitude(&v);
-        H->array[i+1][i] = mag;
-        if (mag < 0.00000000012) {
-            printf("ZERO MAGNITUDE\n");
-            //shrinkMat(H, sparse->rows, sparse->cols);
-            return;
-        }
-        
-        scalarVecDivOut(&v, mag, &q);
-        cleanVec(&v);
-    }
-    
-    //shrinkMat(H, sparse->rows, sparse->cols);
+    Matrix A;
+    initMat(&A, sparse->rows, sparse->cols);
+    sparseToMat(sparse, &A);
+    arnoldiDense(&A, Q, H);
 }
 
 void qrSparse(Matrix* hess, Matrix* orth, Matrix* out) {

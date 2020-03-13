@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-18-20
- * Last Edit: 3-12-20, Joey Tan
+ * Last Edit: 3-13-20, Joey Tan
  */
 
 #ifndef MATRIX
@@ -698,7 +698,7 @@ void inverse(Matrix* mat, Matrix* lower, Matrix* upper, Matrix* inverse) {
 
     Matrix d;
     initMat(&d, mat->rows, mat->cols);
-
+c
     for (int column = 0; column < d.cols; column++) {
         for (int i = 0; i < d.rows; i++) {
             double sum = 0;

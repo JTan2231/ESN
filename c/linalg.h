@@ -8,6 +8,7 @@
 #define LINALG
 #include <stdlib.h>
 #include <stdio.h>
+#include <math.h>
 #include "matrix.h"
 #include "map.h"
 
@@ -48,6 +49,73 @@ double magnitude(Vector* vec) {
     return sqrt(output);
 }
 
+// performs a Givens rotation on the given matrix (one iteration)
+// note: this and givensRight are specifically for the QR algorithm
+// this function builds rArray for use in givensRight()
+void givensLeft(Matrix* mat, int iRow) {
+    assert(mat->rows == mat->cols);
+    
+    double a, b, c, s, h, r;
+    a = mat->array[iRow][iRow];
+    b = mat->array[iRow+1][iRow];
+    
+    r = hypot(a, b);
+    
+    c = a / r;
+    s = -1*b / r;
+    
+    mat->array[iRow][iRow] = c*a - s*b;
+    mat->array[iRow+1][iRow] = s*a + c*b;
+    
+    for (int i = iRow+1; i < mat->cols; i++) {
+        a = mat->array[iRow][i];
+        b = mat->array[iRow+1][i];
+        
+        mat->array[iRow][i] = c*a - s*b;
+    }
+    
+    for (int i = iRow+1; i < mat->cols; i++) {
+        a = mat->array[iRow][i];
+        b = mat->array[iRow+1][i];
+        
+        mat->array[iRow+1][i] = s*a + c*b;
+    }
+    
+    printf("givensLeft finished\n");
+}
+
+void givensRight(Matrix* mat, int iRow) {
+    assert(mat->rows == mat->cols);
+    
+    double a, b, c, s, h, r;
+    a = mat->array[iRow][iRow];
+    b = mat->array[iRow+1][iRow];
+    
+    r = hypot(a, b);
+    
+    c = a / r;
+    s = -1*b / r;
+    
+    mat->array[iRow][iRow] = c*a - s*b;
+    mat->array[iRow+1][iRow] = s*a + c*b;
+    
+    for (int i = iRow+1; i < mat->cols; i++) {
+        a = mat->array[iRow][i];
+        b = mat->array[iRow+1][i];
+        
+        mat->array[iRow][i] = c*a - s*b;
+    }
+    
+    for (int i = iRow+1; i < mat->cols; i++) {
+        a = mat->array[iRow][i];
+        b = mat->array[iRow+1][i];
+        
+        mat->array[iRow+1][i] = s*a + c*b;
+    }
+
+    printf("givensRight finished\n");
+}
+
 //--------------------------------------------------------\\
 // Eigenvectors and Eigenvalues                           \\
 //--------------------------------------------------------\\
@@ -55,7 +123,7 @@ double magnitude(Vector* vec) {
 // see:
 //  - http://www.cs.cmu.edu/afs/cs/academic/class/15859n-f16/Handouts/TrefethenBau/ArnoldiIteration-33.pdf
 //  - https://en.wikipedia.org/wiki/Arnoldi_iteration
-// a dense version because I'm an idiot
+// a dense version because I'm an ~~idiot~~ overachiever
 void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
     assert(mat->rows == Q->rows);
     assert(mat->cols == H->rows-1);
@@ -100,28 +168,17 @@ void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
     arnoldiDense(&A, Q, H);
 }
 
-void qrSparse(Matrix* hess, Matrix* orth, Matrix* out) {
+void qrHess(Matrix* hess, Matrix* out) {
     assert(out->rows == hess->rows);// == orth->rows);
-    assert(out->cols == orth->cols);// == orth->cols);
+
+    Matrix hBar, U;
+    initClone(hess, out);
+    for (int k = 0; k < 1; k++) {
+        for (int i = 0; i < hess->cols-1; i++)
+            givensLeft(out, i);
     
-    int iterations = 10;
-    Matrix temp, orthT;
-    
-    initTranspose(orth, &orthT);
-    initMat(&temp, orth->cols, hess->cols);
-        
-    matDot(&orthT, hess, &temp);
-    matDot(&temp, orth, out);
-    
-    cleanMat(&temp);
-    
-    for (int i = 0; i < iterations-1; i++) {
-        initMat(&temp, orth->rows, hess->cols);
-        
-        matDot(&orthT, out, &temp);
-        matDot(&temp, orth, out);
-        
-        cleanMat(&temp);
+        for (int i = 0; i < hess->cols-1; i++)
+            givensRight(out, i);
     }
 }
 

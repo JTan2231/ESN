@@ -39,7 +39,7 @@ int main() {
     printMat(&m3);*/
 
     Sparse sparse;
-    initSparse(&sparse, 25, 25, 0.25);
+    initSparse(&sparse, 5, 5, 0.5);
     Matrix arnSQ, arnSQT, arnSH;
     initMat(&arnSQ, sparse.rows, sparse.cols);
     initMat(&arnSH, sparse.rows+1, sparse.cols);
@@ -72,6 +72,11 @@ int main() {
     printf("Check:\n");
     matDot(&a, &arnSQ, &b);
     printMat(&b);
+    
+    Matrix* qr;
+    qrHess(&arnSH, qr);
+    printf("QR:\n");
+    printMat(qr);
 
     /*arnoldiDense(&mat, &arnD, &arnDH);
     printf("Dense Orthogonal:\n");

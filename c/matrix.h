@@ -1,7 +1,7 @@
 /*
  * Author: Joey Tan
  * Date Created: 2-18-20
- * Last Edit: 3-4-20, Joey Tan
+ * Last Edit: 3-12-20, Joey Tan
  */
 
 #ifndef MATRIX
@@ -404,7 +404,6 @@ void matVecDot(Matrix* mat, Vector* vec, Vector* out) {
 
 void vecMatDot(Vector* vec, Matrix* mat, Vector* out) {
     assert(vec->size == mat->rows);
-    printf("out->size: %d\n", out->size);
     assert(mat->cols == out->size);
 
     for (int i = 0; i < vec->size; i++)
@@ -420,7 +419,6 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     int m2Vec = m2->cols == 1 && m2->rows != 1 || m2->cols != 1 && m2->rows == 1;
 
     if (m1Vec && m2Vec) {
-        printf("Check 1\n");
         assert(m3->rows == 1 && m3->cols == 1);
 
         initVec(&v1, m1->cols);
@@ -437,7 +435,6 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     }
 
     else if (checkConvert(m1, &v1)) {
-        printf("Check 2\n");
         initVec(&out, m2->cols);
         vecMatDot(&v1, m2, &out);
         convertVecToMat(&out, m3);
@@ -447,7 +444,6 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     }
 
     else if (checkConvert(m2, &v1)) {
-        printf("Check 3\n");
         initVec(&out, m1->rows);
         matVecDot(m1, &v1, &out);
         convertVecToMat(&out, m3);
@@ -499,11 +495,23 @@ void sparseVecDot(Sparse* sparse, Vector* vec, Vector* out) {
     }
 }
 
+void vecSparseDot(Vector* vec, Sparse* sparse, Vector* out) {
+    assert(out->size == sparse->cols);
+
+    for (int i = 0; i < sparse->arraySize; i++) {
+        double sum = 0;
+        for (int j = 0; j < sparse->array[i].arraySize; j++) {
+            double sparseValue = sparse->array[i].array[j].second;
+            double vecValue = vec->array[sparse->array[i].array[j].first];
+            
+            sum += vecValue * sparseValue;
+        }
+        out->array[sparse->array[i].value] = sum;
+    }
+}
+
 // matrix multiplication == denseMatrix * sparseMatrix
 void sparseDotSecond(Matrix* mat, Sparse* sparse, Matrix* out) {
-    /*printf("Sparse: %d, %d\n", sparse->rows, sparse->cols);
-    printf("Orthogonal: %d, %d\n", mat->rows, mat->cols);
-    printf("Temporary: %d, %d\n", out->rows, out->cols);*/
     assert(mat->cols == sparse->rows);
     assert(out->rows == mat->rows);
     assert(out->cols == sparse->cols);
@@ -563,6 +571,16 @@ void shrinkMat(Matrix* mat, int rows, int cols) {
     mat->array = newArray;
     mat->rows = rows;
     mat->cols = cols;
+}
+
+void sparseToMat(Sparse* sparse, Matrix* mat) {
+    assert(sparse->rows == mat->rows);
+    assert(sparse->cols == mat->cols);
+    
+    for (int i = 0; i < sparse->arraySize; i++) {
+        for (int j = 0; j < sparse->array[i].arraySize; j++)
+            mat->array[sparse->array[i].array[j].first][sparse->array[i].value] = sparse->array[i].array[j].second;
+    }
 }
 
 //--------------------------------------------------------\\

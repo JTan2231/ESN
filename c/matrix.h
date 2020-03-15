@@ -322,6 +322,20 @@ void convertVecToMat(Vector* vec, Matrix* mat) {
 // Arithmetic Operations                                  \\
 //--------------------------------------------------------\\
 
+void assignVecSparseRow(Vector* vec, int row, Sparse* sparse) {
+    assert(sparse->cols == vec->size);
+
+    for (int i = 0; i < sparse->arraySize; i++) {
+        for (int j = 0; j < sparse->array[i].arraySize; j++) {
+            if (sparse->array[i].array[j].first == row) {
+                int c = sparse->array[i].value;
+                int v = sparse->array[i].array[j].second;
+                vec->array[c] = v;
+            }
+        }
+    }
+}
+
 void vecSub(Vector* v1, Vector* v2) {
     assert(v1->size == v2->size);
 
@@ -484,15 +498,13 @@ double sparseDotPartial(Matrix* mat, int row, Sparse* sparse, int col) {
 void sparseVecDot(Sparse* sparse, Vector* vec, Vector* out) {
     assert(out->size == vec->size || out->size == sparse->cols || vec->size == sparse->rows);
 
-    for (int i = 0; i < sparse->arraySize; i++) {
-        for (int j = 0; j < sparse->array[i].arraySize; j++) {
-            int sparseCol = sparse->array[i].value;
-            double sparseValue = sparse->array[i].array[j].second;
-            double matrixValue = vec->array[sparseCol];
-
-            out->array[sparseCol] +=  sparseValue * matrixValue;
-        }
-    }
+    for (int i = 0; i < vec->size; i++) {
+        double sum = 0;
+        Vector row;
+        initVec(&row, vec->size);
+        assignVecSparseRow(&row, i, sparse);
+        out->array[i] = vecDot(&row, vec);
+    }           
 }
 
 void vecSparseDot(Vector* vec, Sparse* sparse, Vector* out) {
@@ -548,11 +560,23 @@ void assignVecMatCol(Vector* vec, int col, Matrix* mat) {
         vec->array[i] = mat->array[i][col];
 }
 
+
+
 void cloneVec(Vector* v1, Vector* v2) {
     assert(v1->size == v2->size);
 
     for (int i = 0; i < v1->size; i++)
         v2->array[i] = v1->array[i];
+}
+
+void cloneMat(Matrix* m1, Matrix* m2) {
+    assert(m1->rows == m2->rows);
+    assert(m1->cols == m2->cols);
+
+    for (int i = 0; i < m1->rows; i++) {
+        for (int j = 0; j < m1->cols; j++)
+            m2->array[i][j] = m1->array[i][j];
+    }
 }
 
 // reshape but only shrinking dimensions

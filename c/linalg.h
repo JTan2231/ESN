@@ -13,6 +13,7 @@
 #include "map.h"
 
 // TODO: clean your room
+// TODO: don't forget assertions
 
 //--------------------------------------------------------\\
 // Basic Vector Operations                                \\
@@ -54,7 +55,7 @@ double magnitude(Vector* vec) {
 // this function builds rArray for use in givensRight()
 void givensLeft(Matrix* mat, int iRow) {
     assert(mat->rows == mat->cols);
-    
+
     double a, b, c, s, h, r;
     a = mat->array[iRow][iRow];
     b = mat->array[iRow+1][iRow];
@@ -80,40 +81,35 @@ void givensLeft(Matrix* mat, int iRow) {
         
         mat->array[iRow+1][i] = s*a + c*b;
     }
-    
-    printf("givensLeft finished\n");
 }
 
-void givensRight(Matrix* mat, int iRow) {
+void givensRight(Matrix* mat, int iCol) {
     assert(mat->rows == mat->cols);
     
     double a, b, c, s, h, r;
-    a = mat->array[iRow][iRow];
-    b = mat->array[iRow+1][iRow];
+    a = mat->array[0][iCol];
+    b = mat->array[0][iCol+1];
     
     r = hypot(a, b);
     
     c = a / r;
     s = -1*b / r;
-    
-    mat->array[iRow][iRow] = c*a - s*b;
-    mat->array[iRow+1][iRow] = s*a + c*b;
-    
-    for (int i = iRow+1; i < mat->cols; i++) {
-        a = mat->array[iRow][i];
-        b = mat->array[iRow+1][i];
-        
-        mat->array[iRow][i] = c*a - s*b;
-    }
-    
-    for (int i = iRow+1; i < mat->cols; i++) {
-        a = mat->array[iRow][i];
-        b = mat->array[iRow+1][i];
-        
-        mat->array[iRow+1][i] = s*a + c*b;
+
+    for (int i = 0; i < iCol+2; i++) {
+        a = mat->array[i][iCol];
+        b = mat->array[i][iCol+1];
+
+        mat->array[i][iCol] = c*a - s*b;
     }
 
-    printf("givensRight finished\n");
+    for (int i = 0; i < iCol+2; i++) {
+        a = mat->array[i][iCol];
+        b = mat->array[i][iCol+1];
+
+        mat->array[i][iCol+1] = s*a + c*b;
+    }
+    //printf("Givens right:\n");
+    //printMat(out);
 }
 
 //--------------------------------------------------------\\
@@ -169,17 +165,23 @@ void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
 }
 
 void qrHess(Matrix* hess, Matrix* out) {
-    assert(out->rows == hess->rows);// == orth->rows);
-
     Matrix hBar, U;
     initClone(hess, out);
+
+    Matrix test;
+    Matrix t;
+
+    // Hessenberg QR step
     for (int k = 0; k < 1; k++) {
         for (int i = 0; i < hess->cols-1; i++)
             givensLeft(out, i);
-    
+
         for (int i = 0; i < hess->cols-1; i++)
             givensRight(out, i);
     }
+    
+    printf("Final:\n");
+    printMat(out);
 }
 
 void hessenbergSparse(Matrix* arn, Sparse* sparse, Matrix* out) {

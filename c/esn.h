@@ -10,12 +10,21 @@ typedef struct {
 } Weights;
 
 typedef struct {
+    Matrix* extState;
+    Matrix* extTeacher;
+} Collections;
+
+typedef struct {
     int step;
+    int batchSize;
+    int inputs;
+    int resSize;
+    int outputs;
+
     Vector currentState;
     Vector currentExtState;
     Vector output;
-    Matrix extStateCollection;
-    Matrix extTeacherCollection;
+    Collections* collec;
     Weights* weights;
 } ESN;
 
@@ -24,29 +33,46 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs) {
     weights->reservoir = malloc(sizeof weights->reservoir);
     weights->outputs = malloc(sizeof weights->outputs);
     weights->feedback = malloc(sizeof weights->feedback);
+
+    initRandomNormal(weights->inputs, resSize, inputs);
+    initSparse(weights->reservoir, resSize, resSize, 0.35);
+    initRandomNormal(weights->outputs, outputs, resSize + inputs);
+    initRandomNormal(weights->feedback, resSize, outputs);
+}
+
+void initCollections(Collections* collec, int inputs, int resSize, int outputs, int batchSize) {
+    collec->extState = malloc(sizeof collec->extState);
+    collec->extTeacher = malloc(sizeof collec->extTeacher);
+
+    initMat(collec->extState, batchSize, resSize + inputs);
+    initMat(collec->extTeacher, batchSize, outputs);
 }
 
 // TODO: 0 < spectral radius < 1
-void initNet(ESN* esn, int inputs, int resSize, int outputs) {
+void initNet(ESN* esn, int inputs, int resSize, int outputs, int batchSize) {
     esn->weights = malloc(sizeof esn->weights);
-    initWeights(esn->weights, inputs, resSize, outputs);
+    esn->collec = malloc(sizeof esn->collec);
 
-    initRandomNormal(esn->weights->inputs, resSize, inputs);
-    initSparse(esn->weights->reservoir, resSize, resSize, 0.1);
-    initRandomNormal(esn->weights->outputs, outputs, resSize + inputs);
-    initRandomNormal(esn->weights->feedback, resSize, outputs);
+    initWeights(esn->weights, inputs, resSize, outputs);
+    initCollections(esn->collec, inputs, resSize, outputs, batchSize);
+
+    esn->inputs = inputs;
+    esn->resSize = resSize;
+    esn->outputs = outputs;
+    esn->batchSize = batchSize;
+
     printf("Initialized\n");
 }
 
-void printWeights(ESN* esn) {
+void printWeights(Weights* weights) {
     printf("Inputs:\n");
-    printMat(esn->weights->inputs);
+    printMat(weights->inputs);
     printf("Reservoir:\n");
-    sparsePrint(esn->weights->reservoir);
+    sparsePrint(weights->reservoir);
     printf("Outputs:\n");
-    printMat(esn->weights->outputs);
+    printMat(weights->outputs);
     printf("Feedback:\n");
-    printMat(esn->weights->feedback);
+    printMat(weights->feedback);
 }
 
 // applies logistic function to a vector
@@ -54,6 +80,9 @@ void logistic(Vector* vec) {
     for (int i = 0; i < vec->size; i++)
         vec->array[i] = 1 / (1 + exp(-2 * (vec->array[i] - 0.5)));
 }
+
+// updates output weights using ridge regression
+//void updateWeights(ESN* esn)
 
 /*void updateState(ESN* esn, Vector* nextInput) {
     Vector a, b, c, d, e;

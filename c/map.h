@@ -151,6 +151,7 @@ void sparsePrint(Sparse* pa) {
     printf("Rows: %d\n", pa->rows);
     printf("Columns: %d\n", pa->cols);
     printf("Density: %lf\n", pa->density);
+    printf("Units: %d\n", (int)(pa->rows*pa->cols*pa->density));
     printf("[ \n");
     for (int i = 0; i < pa->arraySize-1; i++) {
         printf("\t");

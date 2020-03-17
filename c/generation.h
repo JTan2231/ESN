@@ -10,7 +10,7 @@
 #include <math.h>
 
 const double PI = 3.14159;
-const double RAND_UPPER = 3;
+const double RAND_UPPER = 1;
 
 //------------------------------------\\
 // Random Number Generation           \\

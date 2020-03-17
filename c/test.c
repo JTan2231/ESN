@@ -6,7 +6,7 @@
 #include "map.h"
 #include "generation.h"
 #include "linalg.h"
-#include "esn.h"
+//#include "esn.h"
 
 // rudimentary test file
 // to make sure everything works as expected
@@ -38,14 +38,14 @@ int main() {
     matDot(&m1, &m2, &m3);
     printMat(&m3);*/
 
-    /*Sparse sparse;
+    Sparse sparse;
     initSparse(&sparse, 5, 5, 0.5);
     Matrix arnSQ, arnSQT, arnSH;
     initMat(&arnSQ, sparse.rows, sparse.cols);
     initMat(&arnSH, sparse.rows+1, sparse.cols);
 
     Matrix mat;
-    initMat(&mat, 5, 5);*/
+    initMat(&mat, 5, 5);
 
     /*set(&mat, 2.11, 1, 1);
     set(&mat, -0.27, 3, 1);
@@ -59,11 +59,11 @@ int main() {
     set(&mat, 0.64, 3, 4);
     set(&mat, -0.71, 4, 4);*/
     
-    ESN net;
-    initNet(&net, 5, 5, 5);
-    printWeights(&net);
+    //ESN net;
+    //initNet(&net, 0, 12, 1, 300);
+    //printWeights(net.weights);
 
-    /*sparseToMat(&sparse, &mat);
+    sparseToMat(&sparse, &mat);
 
     Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);
@@ -85,7 +85,7 @@ int main() {
     printMat(&b);
     
     Matrix qr;
-    qrHess(&arnSH, &qr);*/
+    qrHess(&arnSH, &qr);
     //printf("QR:\n");
     //printMat(&qr);
 

@@ -173,11 +173,17 @@ void qrHess(Matrix* hess, Matrix* out) {
 
     // Hessenberg QR step
     for (int k = 0; k < 1; k++) {
-        for (int i = 0; i < hess->cols-1; i++)
+        for (int i = 0; i < hess->cols-1; i++) {
+            printf("Pre-left:\n");
+            printMat(out);
             givensLeft(out, i);
+        }
 
-        for (int i = 0; i < hess->cols-1; i++)
+        for (int i = 0; i < hess->cols-1; i++) {
+            printf("Pre-right:\n");
+            printMat(out);
             givensRight(out, i);
+        }
     }
     
     printf("Final:\n");

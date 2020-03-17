@@ -70,6 +70,14 @@ void cleanMat(Matrix* mat) {
     free(mat->array);
 }
 
+// set all elements in given matrix to zero
+void zeroMat(Matrix* mat) {
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            mat->array[i][j] = 0;
+    }
+}
+
 // deallocate the given vector
 void cleanVec(Vector* vec) {
     free(vec->array);
@@ -142,7 +150,7 @@ void initSparse(Sparse* mat, int r, int c, double density) {
             int in2 = columnInFirst(&(mat->array[in]), row);
             if (in2 == 0) {
                 // row doesn't exist, add the value
-                columnAdd(&(mat->array[in]), row, marsagliaPolar());
+                columnAdd(&(mat->array[in]), row, randomDouble());
                 count++;
             }
         }
@@ -150,7 +158,7 @@ void initSparse(Sparse* mat, int r, int c, double density) {
             // make and add a new column
             Column p;
             initColumn(&p, column);
-            columnAdd(&p, randRange(r), marsagliaPolar());
+            columnAdd(&p, randRange(r), randomDouble());
             sparseAdd(mat, &p);
             count++;
         }
@@ -369,6 +377,18 @@ void scalarVecDivOut(Vector* vec, double scalar, Vector* out) {
         out->array[i] = vec->array[i] / scalar;
 }
 
+void matAdd(Matrix* m1, Matrix* m2, Matrix* out) {
+    assert(m1->rows == m2->rows);
+    assert(m1->cols == m2->cols);
+    assert(m1->rows == out->rows);
+    assert(m2->cols == out->cols);
+
+    for (int i = 0; i < m1->rows; i++) {
+        for (int j = 0; j < m1->cols; j++)
+            out->array[i][j] = m1->array[i][j] + m2->array[i][j];
+    }
+}
+
 // vector dot == columnVector dot rowVector
 // dot product 
 // of matrix representations 
@@ -504,6 +524,7 @@ void sparseVecDot(Sparse* sparse, Vector* vec, Vector* out) {
         initVec(&row, vec->size);
         assignVecSparseRow(&row, i, sparse);
         out->array[i] = vecDot(&row, vec);
+        cleanVec(&row);
     }           
 }
 
@@ -531,6 +552,47 @@ void sparseDotSecond(Matrix* mat, Sparse* sparse, Matrix* out) {
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < sparse->arraySize; j++)
             out->array[i][sparse->array[j].value] = sparseDotPartial(mat, i, sparse, j);
+    }
+}
+
+void sparseDotFirst(Sparse* sparse, Matrix* mat, Matrix* out) {
+    int matVecRow = mat->rows != 1 && mat->cols == 1;
+    int matVecCol = mat->rows == 1 && mat->cols != 1;
+    Vector vec, vOut;
+
+    if (matVecRow) {
+        initVec(&vec, mat->rows);
+        initVec(&vOut, mat->rows);
+        convertMatToVec(mat, &vec);
+        sparseVecDot(sparse, &vec, &vOut);
+        convertVecToMat(&vOut, out);
+        cleanVec(&vec);
+        cleanVec(&vOut);
+        return;
+    }
+    else if (matVecCol) {
+        initVec(&vec, mat->cols);
+        initVec(&vOut, mat->cols);
+        convertMatToVec(mat, &vec);
+        sparseVecDot(sparse, &vec, &vOut);
+        convertVecToMat(&vOut, out);
+        cleanVec(&vec);
+        cleanVec(&vOut);
+        return;
+    }
+
+    assert(sparse->cols == mat->rows);
+    assert(sparse->rows == out->rows);
+    assert(mat->cols == out->cols);
+
+    for (int i = 0; i < sparse->rows; i++) {
+        Vector sRow;
+        initVec(&sRow, sparse->cols);
+        assignVecSparseRow(&sRow, i, sparse);
+        for (int j = 0; j < mat->cols; j++)
+            out->array[i][j] = matVecDotPartialCol(mat, j, &sRow);
+
+        cleanVec(&sRow);
     }
 }
 
@@ -606,143 +668,5 @@ void sparseToMat(Sparse* sparse, Matrix* mat) {
             mat->array[sparse->array[i].array[j].first][sparse->array[i].value] = sparse->array[i].array[j].second;
     }
 }
-
-//--------------------------------------------------------\\
-// Linear Algebra                                         \\
-//--------------------------------------------------------\\
-
-// normalizes the given vector
-/*void normalize(Vector* vec, double magnitude) {
-    for (int i = 0; i < vec->size; i++)
-        vec->array[i] /= magnitude;
-}
-
-// normalizes the given vector
-// and outputs the normalized values
-// in the given output vector
-void normalizeOut(Vector* vec, Vector* output, double magnitude) {
-    assert(vec->size == output->size);
-
-    assert(magnitude > 0);
-    
-    for (int i = 0; i < vec->size; i++) {
-        double assigned = vec->array[i] / magnitude;
-        assert(!isnan(assigned));
-        output->array[i] = assigned;
-    }
-}
-
-// calculates the magnitude of the given vector
-double magnitude(Vector* vec) {
-    double output = 0;
-    for (int i = 0; i < vec->size; i++)
-        output += vec->array[i] * vec->array[i];
-
-    return sqrt(output);
-}
-
-// uses power iteration to find the eigenVector
-// for a sparse matrix
-// see https://en.wikipedia.org/wiki/Power_iteration
-void eigenVectorSparse(Sparse* mat, Vector* eigenVec, int iterations) {
-    Vector dot;
-    for (int i = 0; i < iterations; i++) {
-        initVec(&dot, eigenVec->size);
-        sparseVecDot(mat, eigenVec, &dot);
-        normalizeOut(&dot, eigenVec, magnitude(&dot));
-        cleanVec(&dot);
-    }
-}
-
-// uses power iteration to find the eigenVector
-// for a dense matrix
-// see https://en.wikipedia.org/wiki/Power_iteration
-void eigenVectorDense(Matrix* mat, Vector* eigenVec, int iterations) {
-    Vector dot;
-    for (int i = 0; i < iterations; i++) {
-        initVec(&dot, eigenVec->size);
-        matVecDot(mat, eigenVec, &dot);
-        normalizeOut(&dot, eigenVec, magnitude(&dot));
-        cleanVec(&dot);
-    }
-}
-
-// uses the Rayleigh Quotient to get the spectral radius
-// of the given eigenvector
-// presumably from power iteration
-// see https://en.wikipedia.org/wiki/Power_iteration
-double rayleighQuotient(Sparse* sparse, Vector* vec) {
-    Vector sparseDot;
-    initVec(&sparseDot, vec->size);
-    sparseVecDot(sparse, vec, &sparseDot);
-
-    double num = vecDot(vec, &sparseDot);
-    double den = vecDot(vec, vec);
-
-    return num / den;
-}
-
-// computes LU decomposition
-// of given matrix (Crout style)
-// see https://en.wikipedia.org/wiki/Crout_matrix_decomposition
-void crout(Matrix* mat, Matrix* lower, Matrix* upper) {
-    assert(mat->rows == mat->cols);
-
-    for (int i = 0; i < mat->rows; i++)
-        upper->array[i][i] = 1;
-
-    // for loop hell
-    for (int i = 0; i < mat->rows; i++) {
-        for (int j = i; j < mat->rows; j++) {
-            double sum = 0;
-            for (int k = 0; k < i; k++)
-                sum += lower->array[j][k] * upper->array[k][i];
-
-            lower->array[j][i] = mat->array[j][i] - sum;
-        }
-
-        for (int j = i; j < mat->rows; j++) {
-            double sum = 0;
-            for (int k = 0; k < i; k++)
-                sum += lower->array[i][k] * upper->array[k][j];
-
-            upper->array[i][j] = (mat->array[i][j] - sum) / lower->array[i][i];
-        }
-    }
-}
-
-// computes the inverse of the given matrix
-// using front- and back-substitution
-// see: 
-// - https://algowiki-project.org/en/Backward_substitution
-// - https://algowiki-project.org/en/Forward_substitution
-void inverse(Matrix* mat, Matrix* lower, Matrix* upper, Matrix* inverse) {
-    Matrix eye;
-    initIdent(&eye, mat->rows, mat->cols);
-
-    Matrix d;
-    initMat(&d, mat->rows, mat->cols);
-c
-    for (int column = 0; column < d.cols; column++) {
-        for (int i = 0; i < d.rows; i++) {
-            double sum = 0;
-            for (int j = 0; j < i; j++)
-                sum += lower->array[i][j] * d.array[j][column];
-
-            d.array[i][column] = (eye.array[i][column]-sum) / lower->array[i][i];
-        }
-    }
-
-    // solve for x (the inverse of mat)
-    for (int column = 0; column < inverse->cols; column++) {
-        for (int i = inverse->rows-1; i >= 0; i--) {
-            double sum = 0;
-            for (int j = i; j < inverse->rows; j++)
-                sum += upper->array[i][j] * inverse->array[j][column];
-
-            inverse->array[i][column] = d.array[i][column] - sum;
-        }
-    }
-}*/
 
 #endif

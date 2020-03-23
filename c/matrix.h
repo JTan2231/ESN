@@ -62,6 +62,15 @@ void initIdent(Matrix* mat, int r, int c) {
         mat->array[i][i] = 1;
 }
 
+// initialize vector with random floating point values
+void initVecRandom(Vector* vec, int size) {
+    vec->array = calloc(size, sizeof(vec->array));
+    vec->size = size;
+    
+    for (int i = 0; i < size; i++) 
+        vec->array[i] = randomDouble();
+}
+
 // deallocate the given matrix
 void cleanMat(Matrix* mat) {
     for (int i = 0; i < mat->rows; i++)
@@ -96,15 +105,6 @@ void initRandom(Matrix* mat, int r, int c) {
         for (int j = 0; j < c; j++)
             mat->array[i][j] = randomDouble();
     }
-}
-
-// initialize vector with random floating point values
-void initVecRandom(Vector* vec, int size) {
-    vec->array = calloc(size, sizeof(vec->array));
-    vec->size = size;
-    
-    for (int i = 0; i < size; i++) 
-        vec->array[i] = randomDouble();
 }
 
 // initialize matrix with random integers between 0 - range

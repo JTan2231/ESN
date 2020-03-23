@@ -39,13 +39,13 @@ int main() {
     printMat(&m3);*/
 
     Sparse sparse;
-    initSparse(&sparse, 5, 5, 0.5);
+    initSparse(&sparse, 5, 5, 0.3);
     Matrix arnSQ, arnSQT, arnSH;
     initMat(&arnSQ, sparse.rows, sparse.cols);
     initMat(&arnSH, sparse.rows+1, sparse.cols);
 
     Matrix mat;
-    initMat(&mat, 5, 5);
+    initMat(&mat, sparse.rows, sparse.cols);
 
     /*set(&mat, 2.11, 1, 1);
     set(&mat, -0.27, 3, 1);
@@ -85,6 +85,32 @@ int main() {
     printMat(&b);
     
     Matrix qr;
+    initMat(&qr, sparse.rows, sparse.cols);
+    
+    qr.array[0][0] = 1;
+    qr.array[0][1] = 2;
+    qr.array[0][2] = 3;
+    qr.array[0][3] = 4;
+    qr.array[0][4] = 5;
+
+    qr.array[1][0] = 1;
+    qr.array[1][1] = 2;
+    qr.array[1][2] = 3;
+    qr.array[1][3] = 4;
+    qr.array[1][4] = 5;
+
+    qr.array[2][1] = 2;
+    qr.array[2][2] = 3;
+    qr.array[2][3] = 4;
+    qr.array[2][4] = 5;
+
+    qr.array[3][2] = 3;
+    qr.array[3][3] = 4;
+    qr.array[3][4] = 5;
+
+    qr.array[4][3] = 4;
+    qr.array[4][4] = 5;
+
     qrHess(&arnSH, &qr);
     //printf("QR:\n");
     //printMat(&qr);

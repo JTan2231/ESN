@@ -85,31 +85,39 @@ int main() {
     printMat(&b);
     
     Matrix qr;
-    initMat(&qr, sparse.rows, sparse.cols);
+    initMat(&qr, 6, 6);
     
-    qr.array[0][0] = 1;
-    qr.array[0][1] = 2;
-    qr.array[0][2] = 3;
-    qr.array[0][3] = 4;
-    qr.array[0][4] = 5;
+    qr.array[0][0] = 7;
+    qr.array[0][1] = 7.2761;
+    qr.array[0][2] = 5.8120;
+    qr.array[0][3] = -0.1397;
+    qr.array[0][4] = 9.0152;
+    qr.array[0][5] = 7.9363;
 
-    qr.array[1][0] = 1;
-    qr.array[1][1] = 2;
-    qr.array[1][2] = 3;
-    qr.array[1][3] = 4;
-    qr.array[1][4] = 5;
+    qr.array[1][0] = 12.3693;
+    qr.array[1][1] = 4.1307;
+    qr.array[1][2] = 18.9685;
+    qr.array[1][3] = -1.2071;
+    qr.array[1][4] = 10.6833;
+    qr.array[1][5] = 2.4160;
 
-    qr.array[2][1] = 2;
-    qr.array[2][2] = 3;
-    qr.array[2][3] = 4;
-    qr.array[2][4] = 5;
+    qr.array[2][1] = -7.1603;
+    qr.array[2][2] = 2.4478;
+    qr.array[2][3] = -0.5656;
+    qr.array[2][4] = -4.1814;
+    qr.array[2][5] = -3.2510;
 
-    qr.array[3][2] = 3;
-    qr.array[3][3] = 4;
-    qr.array[3][4] = 5;
+    qr.array[3][2] = -8.5988;
+    qr.array[3][3] = 2.9151;
+    qr.array[3][4] = -3.4169;
+    qr.array[3][5] = 5.7230;
 
-    qr.array[4][3] = 4;
-    qr.array[4][4] = 5;
+    qr.array[4][3] = 1.0464;
+    qr.array[4][4] = -2.8351;
+    qr.array[4][5] = -10.9792;
+
+    qr.array[5][4] = 1.4143;
+    qr.array[5][5] = 5.3415;
 
     qrHess(&arnSH, &qr);
     //printf("QR:\n");

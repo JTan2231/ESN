@@ -138,7 +138,7 @@ void givensRight(Matrix* mat, int iCol) {
 // see:
 //  - http://www.cs.cmu.edu/afs/cs/academic/class/15859n-f16/Handouts/TrefethenBau/ArnoldiIteration-33.pdf
 //  - https://en.wikipedia.org/wiki/Arnoldi_iteration
-// a dense version because I'm an ~~idiot~~ overachiever
+// a dense version because I like to characterize myself in my code
 void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
     assert(mat->rows == Q->rows);
     assert(mat->cols == H->rows-1);
@@ -188,14 +188,9 @@ void qrHess(Matrix* H, Matrix* out) {
     int p = H->rows-1;
     int q;
     while (p > 1) {
-        /*if (o == 1) {
-            printf("After Second Iteration:\n");
-            printMat(H);
-            return;
-        }*/
         printf("p: %d\n", p);
         q = p-1;
-        double s = H->array[q][q] + H->array[p-1][p-1];
+        double s = H->array[q][q] + H->array[p][p];
         double t = H->array[q][q]*H->array[p][p] - H->array[q][p]*H->array[p][q];
 
         // first three elements of column M
@@ -204,10 +199,10 @@ void qrHess(Matrix* H, Matrix* out) {
         double z = H->array[1][0] * H->array[2][1];
 
         Vector u;
-        Matrix temp;
 
-        for (int i = -1; i < p-2; i++) {
-            
+        for (int i = -1; i < p-2; i++) {    
+            printf("STEP %d.%d:\n", o+1, i+1);
+            //printMat(H);
             // determine Householder reflector 
             // represented only by vector u
             initVec(&u, 3);
@@ -226,131 +221,47 @@ void qrHess(Matrix* H, Matrix* out) {
             u.array[2] = z / d;
 
             int r = max(0, i);
+            for (int k = r; k < H->cols; k++) {
+                double a = H->array[i+1][k];
+                double b = H->array[i+2][k];
+                double c = H->array[i+3][k];
 
-            /*printf("u:\n");
-            printVec(&u);
-            printf("u check:\n");
-            if (1) {
-                double ux = 2*(u.array[0]*x + u.array[1]*y + u.array[2]*z);
-                printf("%lf\n%lf\n%lf\n", x-u.array[0]*ux, y-u.array[1]*ux, z-u.array[2]*ux);
+                double ux = 2*(u.array[0]*a + u.array[1]*b + u.array[2]*c);
+                
+                double aTemp = u.array[0] * ux;
+                double bTemp = u.array[1] * ux;
+                double cTemp = u.array[2] * ux;
+
+                H->array[i+1][k] = a - aTemp;
+                H->array[i+2][k] = b - bTemp;
+                H->array[i+3][k] = c - cTemp;
             }
 
-            printf("d: %lf\n", d);*/
+            r = min(i+4, p);
+            for (int l = 0; l < r+1; l++) {
+                double a = H->array[l][i+1];
+                double b = H->array[l][i+2];
+                double c = H->array[l][i+3];
 
-            initMat(&temp, 3, H->rows-r+1);
-            //for (int l = 0; l < 3; l++) {
-                for (int k = r; k < H->cols; k++) {
-                    double a = H->array[i+1][k];
-                    double b = H->array[i+2][k];
-                    double c = H->array[i+3][k];
+                double ux = 2*(u.array[0]*a + u.array[1]*b + u.array[2]*c);
 
-                    double ux = 2*(u.array[0]*a + u.array[1]*b + u.array[2]*c);
-                    
-                    double aTemp = u.array[0] * ux;
-                    double bTemp = u.array[1] * ux;
-                    double cTemp = u.array[2] * ux;
+                double aTemp = u.array[0] * ux;
+                double bTemp = u.array[1] * ux;
+                double cTemp = u.array[2] * ux;
 
-                    H->array[i+1][k] = a - aTemp;
-                    H->array[i+2][k] = b - bTemp;
-                    H->array[i+3][k] = c - cTemp;
-
-                    /*if (l == 0) {
-                        a -= 1 - u.array[0]*du;
-                        b *= 0 - u.array[1]*du;
-                        c *= 0 - u.array[2]*du;
-                    }
-                    else if (l == 1) {
-                        a *= 0 - u.array*du;
-                        b *= 1 - 2*du;
-                        c *= 0 - 2*du;
-                    }
-                    else if (l == 2) {
-                        a *= 0 - 2*du;
-                        b *= 0 - 2*du;
-                        c *= 1 - 2*du;
-                    }
-
-                    temp.array[l][k-r] = a + b + c;*/
-                    //printf("First temp assignment: %lf, %lf, %lf\n", a-aTemp, b-bTemp, c-cTemp);
-                }
-            //}
-
-            // move from temp to H
-            /*for (int j = r; j < H->cols; j++) {
-                H->array[i+1][j] = temp.array[0][j-r];
-                H->array[i+2][j] = temp.array[1][j-r];
-                H->array[i+3][j] = temp.array[2][j-r];
-            }*/
-
-            cleanMat(&temp);
-
-            //printf("Right Householder:\n");
-            //printMat(H);
-
-            r = min(i+5, p+1);
-            //printf("r: %d\n", r);
-
-            initMat(&temp, r, 3);
-            for (int l = 0; l < r; l++) {
-                //for (int k = 0; k < 3; k++) {
-                    double a = H->array[l][i+1];
-                    double b = H->array[l][i+2];
-                    double c = H->array[l][i+3];
-
-                    double ux = 2*(u.array[0]*a + u.array[1]*b + u.array[2]*c);
-
-                    double aTemp = u.array[0] * ux;
-                    double bTemp = u.array[1] * ux;
-                    double cTemp = u.array[2] * ux;
-
-                    H->array[l][i+1] = a - aTemp;
-                    H->array[l][i+2] = b - bTemp;
-                    H->array[l][i+3] = c - cTemp;
-
-                    /*if (k == 0) {
-                        a *= 1 - 2*du;
-                        b *= 0 - 2*du;
-                        c *= 0 - 2*du;
-                    }
-                    else if (k == 1) {
-                        a *= 0 - 2*du;
-                        b *= 1 - 2*du;
-                        c *= 0 - 2*du;
-                    }
-                    else if (k == 2) {
-                        a *= 0 - 2*du;
-                        b *= 0 - 2*du;
-                        c *= 1 - 2*du;
-                    }
-                    
-                    temp.array[l][k] = a + b + c;*/
-                    //printf("Second temp assignment: %lf, %lf, %lf\n", a-aTemp, b-bTemp, c-cTemp);
-                //}
+                H->array[l][i+1] = a - aTemp;
+                H->array[l][i+2] = b - bTemp;
+                H->array[l][i+3] = c - cTemp;
             }
-
-            // move from temp to H
-            /*for (int j = 0; j < temp.rows; j++) {
-                H->array[j][i+1] = temp.array[j][0];
-                H->array[j][i+2] = temp.array[j][1];
-                H->array[j][i+3] = temp.array[j][2];
-            }*/
-
-            cleanMat(&temp);
+            
             cleanVec(&u);
 
+            printf("Pre-XYZ assignment\n");
             x = H->array[i+2][i+1];
             y = H->array[i+3][i+1];
             if (i < p-3)
                 z = H->array[i+4][i+1];
-
-            //printf("Left Householder:\n");
-            //printMat(H);
-            //return;
-            /*if (i == 0) {
-                printf("Two Householder cycles:\n");
-                printMat(H);
-                return;
-            }*/
+            printf("Post-XYZ assignment\n");
         }
 
         initVec(&u, 2);
@@ -361,95 +272,48 @@ void qrHess(Matrix* H, Matrix* out) {
         u.array[0] = (x - rho*uMag) / d;
         u.array[1] = y / d;
 
-        /*printf("Givens u check:\n");
-        if (1) {
-            double ux = 2*(u.array[0]*x + u.array[1]*y);
-            printf("%lf\n%lf\n", x-u.array[0]*ux, y-u.array[1]*ux);
-        }*/
-
         // Givens rotation P from the left
-        initMat(&temp, 2, H->cols-p+2);
-        //for (int j = 0; j < 2; j++) {
-            for (int k = p-2; k < H->cols; k++) {
-                double a = H->array[q][k];
-                double b = H->array[p][k];
+        for (int k = p-2; k < H->cols; k++) {
+            double a = H->array[q][k];
+            double b = H->array[p][k];
 
-                double ux = 2*(u.array[0]*a + u.array[1]*b);
+            double ux = 2*(u.array[0]*a + u.array[1]*b);
 
-                double aTemp = u.array[0] * ux;
-                double bTemp = u.array[1] * ux;
+            double aTemp = u.array[0] * ux;
+            double bTemp = u.array[1] * ux;
 
-                H->array[q][k] = a - aTemp;
-                H->array[p][k] = b - bTemp;
-
-                /*if (j == 0) {
-                    a *= 1 - 2*du;
-                    b *= 0 - 2*du;
-                }
-                else if (j == 1) {
-                    a *= 0 - 2*du;
-                    b *= 1 - 2*du;
-                }
-                
-                temp.array[j][k-p+2] = a + b;*/
-                //printf("Third temp assignment: %lf, %lf\n", a-aTemp, b-bTemp);
-            }
-        //}
-
-        // move temp to H
-        /*for (int j = q; j < p+1; j++) {
-            for (int k = p-2; k < H->cols; k++)
-                H->array[j][k] = temp.array[j-q][k-p+2];
-        }*/
-
-        cleanMat(&temp);
-
-        initMat(&temp, p, 2);
-        for (int j = 0 ; j < p; j++) {
-            //for (int k = p-1; k < p+1; k++) {
-                double a = H->array[j][p-1];
-                double b = H->array[j][p];
-
-                double ux = 2*(u.array[0]*a + u.array[1]*b);
-
-                double aTemp = u.array[0] * ux;
-                double bTemp = u.array[1] * ux;
-
-                H->array[j][p-1] = a - aTemp;
-                H->array[j][p] = b - bTemp;
-
-                //printf("Fourth temp assignment: %lf, %lf\n", a-aTemp, b-bTemp);
-            //}
+            H->array[q][k] = a - aTemp;
+            H->array[p][k] = b - bTemp;
         }
 
-        // move temp to H
-        /*for (int j = 0; j < p; j++) {
-            for (int k = p-1; k < p+1; k++)
-                H->array[j][k] = temp.array[j][k-p+1];
-        }*/
+        for (int j = 0 ; j < p+1; j++) {
+            double a = H->array[j][p-1];
+            double b = H->array[j][p];
+
+            double ux = 2*(u.array[0]*a + u.array[1]*b);
+
+            double aTemp = u.array[0] * ux;
+            double bTemp = u.array[1] * ux;
+
+            H->array[j][p-1] = a - aTemp;
+            H->array[j][p] = b - bTemp;
+        }
         
         if (isnan(H->array[p][q])) {
             printf("NAN\n");
             return;
         }
-        printf("H->array[%d][%d]: %.16lf\n", p, q, H->array[p][q]);
+        
         if (fabs(H->array[p][q]) < TOL*(fabs(H->array[q][q]) + fabs(H->array[p][p]))) {
-            printf("Zero check 1:\n");
             H->array[p][q] = 0;
             p--;
             q = p - 1;
         }
         else if (fabs(H->array[p-1][q-1]) < TOL*(fabs(H->array[q-1][q-1]) + fabs(H->array[q][q]))) {
-            printf("Zero check 2:\n");
             H->array[p-1][q-1] = 0;
             p -= 2;
             q = p - 1;
         }
-
-        //printf("Post-Householders check:\n");
-        //printMat(H);
-        //return;
-
         o++;
     }
 

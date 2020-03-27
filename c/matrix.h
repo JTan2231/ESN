@@ -252,6 +252,17 @@ void initSparseToMat(Sparse* sparse, Matrix* mat) {
     }
 }
 
+void reinitMat(Matrix* mat, int r, int c) {
+    cleanMat(mat);
+    initMat(mat, r, c);
+}
+
+void reinitSparse(Sparse* sparse, int r, int c, double d) {
+    //printf("Reinitialization check. density: %lf\n", d);
+    cleanSparse(sparse);
+    initSparse(sparse, r, c, d);
+}
+
 //--------------------------------------------------------\\
 // I/O                                                    \\
 //--------------------------------------------------------\\
@@ -375,6 +386,20 @@ void scalarVecSub(Vector* vec, double scalar) {
 void scalarVecDivOut(Vector* vec, double scalar, Vector* out) {
     for (int i = 0; i < vec->size; i++)
         out->array[i] = vec->array[i] / scalar;
+}
+
+void scalarSparseMult(Sparse* mat, double scalar) {
+    for (int i = 0; i < mat->arraySize; i++) {
+        for (int j = 0; j < mat->array[i].arraySize; j++)
+            mat->array[i].array[j].second *= scalar;
+    }
+}
+
+void scalarSparseDiv(Sparse* mat, double scalar) {
+    for (int i = 0; i < mat->arraySize; i++) {
+        for (int j = 0; j < mat->array[i].arraySize; j++)
+            mat->array[i].array[j].second /= scalar;
+    }
 }
 
 void matAdd(Matrix* m1, Matrix* m2, Matrix* out) {
@@ -622,7 +647,27 @@ void assignVecMatCol(Vector* vec, int col, Matrix* mat) {
         vec->array[i] = mat->array[i][col];
 }
 
+// append m2 to m1, row-wise
+void appendMatRow(Matrix** m1, Matrix* m2) {
+    assert((*m1)->cols == m2->cols);
 
+    Matrix* pm1 = *m1;
+    Matrix temp;
+    initMat(&temp, pm1->rows + m2->rows, pm1->cols);
+
+    for (int i = 0; i < pm1->rows; i++) {
+        for (int j = 0; j < pm1->cols; j++)
+            temp.array[i][j] = pm1->array[i][j];
+    }
+
+    for (int i = 0; i < m2->rows; i++) {
+        for (int j = 0; j < m2->cols; j++)
+            temp.array[i+pm1->rows][j] = m2->array[i][j];
+    }
+
+    cleanMat(pm1);
+    *m1 = &temp;
+}
 
 void cloneVec(Vector* v1, Vector* v2) {
     assert(v1->size == v2->size);

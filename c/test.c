@@ -6,7 +6,7 @@
 #include "map.h"
 #include "generation.h"
 #include "linalg.h"
-//#include "esn.h"
+#include "esn.h"
 
 // rudimentary test file
 // to make sure everything works as expected
@@ -38,14 +38,14 @@ int main() {
     matDot(&m1, &m2, &m3);
     printMat(&m3);*/
 
-    Sparse sparse;
-    initSparse(&sparse, 5, 5, 0.3);
+    /*Sparse sparse;
+    initSparse(&sparse, 6, 6, 0.35);
     Matrix arnSQ, arnSQT, arnSH;
     initMat(&arnSQ, sparse.rows, sparse.cols);
     initMat(&arnSH, sparse.rows+1, sparse.cols);
 
     Matrix mat;
-    initMat(&mat, sparse.rows, sparse.cols);
+    initMat(&mat, sparse.rows, sparse.cols);*/
 
     /*set(&mat, 2.11, 1, 1);
     set(&mat, -0.27, 3, 1);
@@ -59,17 +59,28 @@ int main() {
     set(&mat, 0.64, 3, 4);
     set(&mat, -0.71, 4, 4);*/
     
-    //ESN net;
-    //initNet(&net, 0, 12, 1, 300);
-    //printWeights(net.weights);
+    ESN net;
+    initNet(&net, 0, 20, 1, 300, randomDouble());
+    printWeights(net.weights);
 
-    sparseToMat(&sparse, &mat);
 
-    Matrix a, b;
+    /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);
     initMat(&b, sparse.rows, sparse.cols);
     
-    arnoldiSparse(&sparse, &arnSQ, &arnSH);
+    int o = 1;
+    while (arnoldiSparse(&sparse, &arnSQ, &arnSH) != 0) {
+        printf("Iteration %d\n", o);
+        cleanSparse(&sparse);
+        initSparse(&sparse, sparse.rows, sparse.cols, sparse.density);
+        cleanMat(&arnSQ);
+        initMat(&arnSQ, sparse.rows, sparse.cols);
+        cleanMat(&arnSH);
+        initMat(&arnSH, sparse.rows+1, sparse.cols);
+        o++;
+    }
+
+    sparseToMat(&sparse, &mat);
     shrinkMat(&arnSH, arnSQ.rows, arnSQ.cols);
     initTranspose(&arnSQ, &arnSQT);
     
@@ -119,7 +130,7 @@ int main() {
     qr.array[5][4] = 1.4143;
     qr.array[5][5] = 5.3415;
 
-    qrHess(&arnSH, &qr);
+    qrHess(&arnSH);*/
     //printf("QR:\n");
     //printMat(&qr);
 

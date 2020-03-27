@@ -139,7 +139,7 @@ void givensRight(Matrix* mat, int iCol) {
 //  - http://www.cs.cmu.edu/afs/cs/academic/class/15859n-f16/Handouts/TrefethenBau/ArnoldiIteration-33.pdf
 //  - https://en.wikipedia.org/wiki/Arnoldi_iteration
 // a dense version because I like to characterize myself in my code
-void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
+int arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
     assert(mat->rows == Q->rows);
     assert(mat->cols == H->rows-1);
     assert(mat->rows == mat->cols);
@@ -166,29 +166,33 @@ void arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
         double mag = magnitude(&v);
         H->array[i+1][i] = mag;
         if (mag < 0.00000000012) {
-            assert(i == mat->rows-1);
-            printf("ZERO MAGNITUDE\n");
-            return;
+            //printf("i: %d\n", i);
+            if (i == mat->rows-1)
+                return 0;
+
+            //printf("ZERO MAGNITUDE\n");
+            return 1;
         }
         
         scalarVecDivOut(&v, mag, &q);
         cleanVec(&v);
     }
+
+    return 0;
 }
 
-void arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
+int arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
     Matrix A;
     initMat(&A, sparse->rows, sparse->cols);
     sparseToMat(sparse, &A);
     arnoldiDense(&A, Q, H);
 }
 
-void qrHess(Matrix* H, Matrix* out) {
-    int o = 0;
+int qrHess(Matrix* H) {
     int p = H->rows-1;
     int q;
     while (p > 1) {
-        printf("p: %d\n", p);
+        //printf("p: %d\n", p);
         q = p-1;
         double s = H->array[q][q] + H->array[p][p];
         double t = H->array[q][q]*H->array[p][p] - H->array[q][p]*H->array[p][q];
@@ -201,7 +205,6 @@ void qrHess(Matrix* H, Matrix* out) {
         Vector u;
 
         for (int i = -1; i < p-2; i++) {    
-            printf("STEP %d.%d:\n", o+1, i+1);
             //printMat(H);
             // determine Householder reflector 
             // represented only by vector u
@@ -212,8 +215,8 @@ void qrHess(Matrix* H, Matrix* out) {
             double d = sqrt(xTemp*xTemp + y*y + z*z);
 
             if (d > 1000) {
-                printf("\nDIVERGING\n");
-                return;
+                printf("QR FAILED: DIVERGING\n");
+                return 1;
             }
 
             u.array[0] = (x - rho*uMag) / d;
@@ -256,12 +259,10 @@ void qrHess(Matrix* H, Matrix* out) {
             
             cleanVec(&u);
 
-            printf("Pre-XYZ assignment\n");
             x = H->array[i+2][i+1];
             y = H->array[i+3][i+1];
             if (i < p-3)
                 z = H->array[i+4][i+1];
-            printf("Post-XYZ assignment\n");
         }
 
         initVec(&u, 2);
@@ -300,8 +301,8 @@ void qrHess(Matrix* H, Matrix* out) {
         }
         
         if (isnan(H->array[p][q])) {
-            printf("NAN\n");
-            return;
+            printf("QR FAILED: NAN\n");
+            return 1;
         }
         
         if (fabs(H->array[p][q]) < TOL*(fabs(H->array[q][q]) + fabs(H->array[p][p]))) {
@@ -314,11 +315,9 @@ void qrHess(Matrix* H, Matrix* out) {
             p -= 2;
             q = p - 1;
         }
-        o++;
     }
 
-    printf("Final:\n");
-    printMat(H);
+    return 0;
 }
 
 void hessenbergSparse(Matrix* arn, Sparse* sparse, Matrix* out) {

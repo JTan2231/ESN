@@ -60,9 +60,9 @@ int main() {
     set(&mat, -0.71, 4, 4);*/
     
     ESN net;
-    initNet(&net, 0, 20, 1, 300, randomDouble());
-    printWeights(net.weights);
-
+    initNet(&net, 0, 20, 1, 300, randomPositiveDouble(), 100);
+    //printWeights(net.weights);
+    train(&net);
 
     /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);

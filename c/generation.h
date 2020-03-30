@@ -45,6 +45,10 @@ double randomDouble() {
     return output;
 }
 
+double randomPositiveDouble() {
+    return (double)rand()/(double)(RAND_MAX/RAND_UPPER);
+}
+
 //------------------------------------\\
 // Statistics                         \\
 //------------------------------------\\

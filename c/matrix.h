@@ -18,6 +18,7 @@ typedef struct {
     double** array;
     int rows;
     int cols;
+    int size;
 } Matrix;
 
 typedef struct {
@@ -26,7 +27,6 @@ typedef struct {
 } Vector;
 
 // TODO: Organizing this file
-// TODO: EIGENVALUES
 // TODO: Tikhonov Regularization
 
 //----------------------------------------\\
@@ -41,6 +41,7 @@ void initMat(Matrix* mat, int r, int c) {
     
     mat->rows = r;
     mat->cols = c;
+    mat->size = r*c;
 }
 
 // initialize empty vector of given size
@@ -57,6 +58,7 @@ void initIdent(Matrix* mat, int r, int c) {
     
     mat->rows = r;
     mat->cols = c;
+    mat->size = r*c;
 
     for (int i = 0; i < r; i++)
         mat->array[i][i] = 1;
@@ -94,12 +96,7 @@ void cleanVec(Vector* vec) {
 
 // initialize matrix with random floating point values
 void initRandom(Matrix* mat, int r, int c) {
-    mat->array = calloc(r, sizeof(*(mat->array)));
-    for (int i = 0; i < r; i++)
-        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
-    
-    mat->rows = r;
-    mat->cols = c;
+    initMat(mat, r, c);
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
@@ -109,13 +106,8 @@ void initRandom(Matrix* mat, int r, int c) {
 
 // initialize matrix with random integers between 0 - range
 void initRandomRange(Matrix* mat, int r, int c, int range) {
-    mat->array = calloc(r, sizeof(*(mat->array)));
-    for (int i = 0; i < r; i++)
-        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
-    
-    mat->rows = r;
-    mat->cols = c;
-    
+    initMat(mat, r, c);
+
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
             mat->array[i][j] = randRange(range);
@@ -167,12 +159,7 @@ void initSparse(Sparse* mat, int r, int c, double density) {
 
 // initialize matrix using normally distributed random values
 void initRandomNormal(Matrix* mat, int r, int c) {
-    mat->array = calloc(r, sizeof(*(mat->array)));
-    for (int i = 0; i < r; i++)
-        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
-    
-    mat->rows = r;
-    mat->cols = c;
+    initMat(mat, r, c);
 
     for (int i = 0; i < r; i++) {
         for (int j = 0; j < c; j++)
@@ -191,12 +178,7 @@ void initVecRandomNormal(Vector* vec, int size) {
 
 // initialize matT to be the transpose of mat
 void initTranspose(Matrix* mat, Matrix* matT) {
-    matT->array = calloc(mat->rows, sizeof(*(mat->array)));
-    for (int i = 0; i < mat->rows; i++)
-        matT->array[i] = calloc(mat->cols, sizeof(*(mat->array[i])));
-    
-    matT->rows = mat->cols;
-    matT->cols = mat->rows;
+    initMat(matT, mat->rows, mat->cols);
 
     for (int i = 0; i < matT->rows; i++) {
         for (int j = 0; j < matT->cols; j++)
@@ -205,12 +187,7 @@ void initTranspose(Matrix* mat, Matrix* matT) {
 }
 
 void initClone(Matrix* mat, Matrix* clone) {
-    clone->array = calloc(mat->rows, sizeof(*(mat->array)));
-    for (int i = 0; i < mat->rows; i++)
-        clone->array[i] = calloc(mat->cols, sizeof(*(mat->array[i])));
-    
-    clone->rows = mat->rows;
-    clone->cols = mat->cols;
+    initMat(clone, mat->rows, mat->cols);
 
     for (int i = 0; i < mat->rows; i++) {
         for (int j = 0; j < mat->cols; j++)
@@ -236,12 +213,7 @@ void initVecCol(Matrix* mat, int col, Vector* vec) {
 }
 
 void initSparseToMat(Sparse* sparse, Matrix* mat) {
-    mat->array = calloc(sparse->rows, sizeof(mat->array));
-    for (int i = 0; i < sparse->rows; i++)
-        mat->array[i] = calloc(sparse->cols, sizeof(*(mat->array[i])));
-
-    mat->rows = sparse->rows;
-    mat->cols = sparse->cols;
+    initMat(mat, sparse->rows, sparse->cols);
 
     for (int j = 0; j < sparse->arraySize; j++) {
         for (int i = 0; i < sparse->array[j].arraySize; i++) {
@@ -263,12 +235,20 @@ void reinitSparse(Sparse* sparse, int r, int c, double d) {
     initSparse(sparse, r, c, d);
 }
 
+// returns boolean value of whether or not
+// given matrix is a row or column vector
+int vecCheck(Matrix* mat) {
+    return mat->rows > 1 && mat->cols == 1 || mat->cols > 1 && mat->rows == 1;
+}
+
 //--------------------------------------------------------\\
 // I/O                                                    \\
 //--------------------------------------------------------\\
 
 // prints the given matrix
 void printMat(Matrix* mat) {
+    printf("Rows: %d\n", mat->rows);
+    printf("Cols: %d\n", mat->cols);
     for (int i = 0; i < mat->rows; i++) {
         printf("[ \n");
         for (int j = 0; j < mat->cols; j++)
@@ -324,7 +304,7 @@ int checkConvert(Matrix* mat, Vector* vec) {
 void convertVecToMat(Vector* vec, Matrix* mat) {
     int rows = vec->size == mat->rows;
     int cols = vec->size == mat->cols;
-    int correct = mat->rows > 1 && mat->cols == 1 || mat->cols > 1 && mat->rows == 1;
+    int correct = vecCheck(mat);
     assert((rows || cols) && correct);
 
     if (rows) {
@@ -369,6 +349,14 @@ void vecAdd(Vector* v1, Vector* v2) {
         v1->array[i] += v2->array[i];
 }
 
+void vecAddOut(Vector* v1, Vector* v2, Vector* out) {
+    assert(v1->size == v2->size);
+    assert(v2->size == out->size);
+
+    for (int i = 0; i < v1->size; i++)
+        out->array[i] = v1->array[i] + v2->array[i];
+}
+
 // multiply all elements of given vector
 // by given scalar
 void scalarVec(Vector* vec, double scalar) {
@@ -403,6 +391,31 @@ void scalarSparseDiv(Sparse* mat, double scalar) {
 }
 
 void matAdd(Matrix* m1, Matrix* m2, Matrix* out) {
+    // for addition of column vectors and row vectors
+    if (vecCheck(m1) && vecCheck(m2)) {
+        int outVec = out->rows == 1 && out->cols != 1 || out->rows != 1 && out->cols == 1;
+        assert(outVec);
+        assert(out->size == m1->size);
+        assert(out->size == m2->size);
+
+        Vector v1, v2, outV;
+        initVec(&v1, m1->size);
+        initVec(&v2, m2->size);
+        initVec(&outV, out->size);
+
+        convertMatToVec(m1, &v1);
+        convertMatToVec(m2, &v2);
+        
+        vecAddOut(&v1, &v2, &outV);
+        convertVecToMat(&outV, out);
+
+        cleanVec(&v1);
+        cleanVec(&v2);
+        cleanVec(&outV);
+
+        return;
+    }
+
     assert(m1->rows == m2->rows);
     assert(m1->cols == m2->cols);
     assert(m1->rows == out->rows);
@@ -462,6 +475,8 @@ void matVecDot(Matrix* mat, Vector* vec, Vector* out) {
 }
 
 void vecMatDot(Vector* vec, Matrix* mat, Vector* out) {
+    printf("vec.size: %d\n", vec->size);
+    printf("mat.rows, mat.cols: %d, %d\n", mat->rows, mat->cols);
     assert(vec->size == mat->rows);
     assert(mat->cols == out->size);
 
@@ -474,8 +489,42 @@ void vecMatDot(Vector* vec, Matrix* mat, Vector* out) {
 void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     Vector v1, v2, out;
 
-    int m1Vec = m1->cols == 1 && m1->rows != 1 || m1->cols != 1 && m1->rows == 1;
-    int m2Vec = m2->cols == 1 && m2->rows != 1 || m2->cols != 1 && m2->rows == 1;
+    int m1Vec = vecCheck(m1);
+    int m1Scalar = m1->cols == 1 && m1->rows == 1;
+    int m2Vec = vecCheck(m2);
+    int m2Scalar = m2->cols == 1 && m2->rows == 1;
+
+    if (m1Scalar && m2Scalar) {
+        assert(m3->cols == 1 && m3->rows == 1);
+
+        m3->array[0][0] = m1->array[0][0] * m2->array[0][0];
+        
+        return;
+    }
+
+    else if (!m1Scalar && m2Scalar) {
+        assert(m3->rows == m1->rows);
+        assert(m3->cols == m1->cols);
+
+        for (int i = 0; i < m1->rows; i++) {
+            for (int j = 0; j < m1->cols; j++)
+                m3->array[i][j] = m1->array[i][j] * m2->array[0][0];
+        }
+
+        return;
+    }
+
+    else if (m1Scalar && !m2Scalar) {
+        assert(m3->rows == m2->rows);
+        assert(m3->cols == m2->cols);
+
+        for (int i = 0; i < m2->rows; i++) {
+            for (int j = 0; j < m2->cols; j++)
+                m3->array[i][j] = m1->array[0][0] * m2->array[i][j];
+        }
+
+        return;
+    }
 
     if (m1Vec && m2Vec) {
         assert(m3->rows == 1 && m3->cols == 1);
@@ -648,25 +697,25 @@ void assignVecMatCol(Vector* vec, int col, Matrix* mat) {
 }
 
 // append m2 to m1, row-wise
-void appendMatRow(Matrix** m1, Matrix* m2) {
-    assert((*m1)->cols == m2->cols);
+void appendMatRow(Matrix* m1, Matrix* m2) {
+    assert(m1->cols == m2->cols);
 
-    Matrix* pm1 = *m1;
     Matrix temp;
-    initMat(&temp, pm1->rows + m2->rows, pm1->cols);
+    initMat(&temp, m1->rows + m2->rows, m1->cols);
 
-    for (int i = 0; i < pm1->rows; i++) {
-        for (int j = 0; j < pm1->cols; j++)
-            temp.array[i][j] = pm1->array[i][j];
+    for (int i = 0; i < m1->rows; i++) {
+        for (int j = 0; j < m1->cols; j++)
+            temp.array[i][j] = m1->array[i][j];
     }
 
     for (int i = 0; i < m2->rows; i++) {
         for (int j = 0; j < m2->cols; j++)
-            temp.array[i+pm1->rows][j] = m2->array[i][j];
+            temp.array[i+m1->rows][j] = m2->array[i][j];
     }
 
-    cleanMat(pm1);
-    *m1 = &temp;
+    cleanMat(m1);
+    m1->array = temp.array;
+    m1->rows = temp.rows;
 }
 
 void cloneVec(Vector* v1, Vector* v2) {

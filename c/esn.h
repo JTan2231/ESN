@@ -120,8 +120,14 @@ void initCollections(Collections* collec, int inputs, int resSize, int outputs, 
     collec->extState = malloc(sizeof(collec->extState));
     collec->extTeacher = malloc(sizeof(collec->extTeacher));
 
-    initMat(collec->extState, batchSize, resSize + inputs);
-    initMat(collec->extTeacher, batchSize, outputs);
+    // these are initialized to one because
+    // collected states are appended to the matrix
+
+    // TODO: Consider no appending, and just assignment
+    // i.e. initialize these matrices to a fixed size
+    // and assign values from there
+    initMat(collec->extState, 1, resSize + inputs);
+    initMat(collec->extTeacher, 1, outputs);
 }
 
 void initStates(States* states, int inputs, int resSize, int outputs) {
@@ -196,10 +202,10 @@ void inverseSigmoid(Matrix* mat) {
 // get the desired output
 // for a sin wave generator
 double desired(int t) {
-    return (1/2)*sin(t/4.);
+    return (1./2.)*sin(t/4.);
 }
 
-void updateState(ESN* esn, Matrix* nextIn, Matrix* teachOut) {
+void updateState(ESN* esn, Matrix* nextIn) {
     Matrix in, res, back;
     
     States* states = esn->states;
@@ -207,12 +213,12 @@ void updateState(ESN* esn, Matrix* nextIn, Matrix* teachOut) {
 
     initMat(&in, weights->inputs->rows, nextIn->cols);
     initMat(&res, weights->reservoir->rows, states->currentState->rows);
-    initMat(&back, weights->feedback->rows, teachOut->cols);
+    initMat(&back, weights->feedback->rows, states->currentTeacher->size);
 
     matDot(weights->inputs, nextIn, &in);
     sparseDotFirst(weights->reservoir, states->currentState, &res);
     // change later
-    matDot(weights->feedback, teachOut, &back);
+    matDot(weights->feedback, states->currentTeacher, &back);
 
     zeroMat(states->currentState);
 
@@ -232,12 +238,12 @@ void updateStateNoInput(ESN* esn) {
     States* states = esn->states;
     Weights* weights = esn->weights;
 
-    initMat(&res, weights->reservoir->rows, states->currentState->rows);
-    initMat(&back, weights->feedback->rows, teachOut->cols);
+    initMat(&res, states->currentState->rows, weights->reservoir->rows);
+    initMat(&back, weights->feedback->rows, states->currentTeacher->size);
 
     sparseDotFirst(weights->reservoir, states->currentState, &res);
     // change later
-    matDot(weights->feedback, teachOut, &back);
+    matDot(weights->feedback, states->currentTeacher, &back);
 
     zeroMat(states->currentState);
 
@@ -253,18 +259,24 @@ void collectStates(ESN* esn) {
     States* states = esn->states;
     Weights* weights = esn->weights;
     Collections* collec = esn->collec;
+
+    for (int t = 0; t < esn->washout; t++) {
+        states->currentTeacher->array[0][0] = desired(t);
+        updateStateNoInput(esn);
+    }
+
     for (int t = esn->washout; t < esn->batchSize; t++) {
-        appendMatRow(&(collec->extState), states->currentState);
+        appendMatRow(collec->extState, states->currentState);
         updateStateNoInput(esn);
         inverseSigmoid(states->currentTeacher);
-        appendMatRow(&(collec->extTeacher), states->currentTeacher);
+        appendMatRow(collec->extTeacher, states->currentTeacher);
 
         Matrix newTeach;
         initMat(&newTeach, states->currentTeacher->rows, states->currentTeacher->cols);
         // TODO: Update for a more general approach (i.e. don't rely on a function)
         for (int i = 0; i < newTeach.rows; i++) {
             for (int j = 0; j < newTeach.cols; j++)
-                newTeach[i][j] = desired(t);
+                newTeach.array[i][j] = desired(t);
         }
 
         cleanMat(states->currentTeacher);
@@ -274,9 +286,12 @@ void collectStates(ESN* esn) {
 
 void train(ESN* esn) {
     assert(esn->initialized);
+    printf("Training:\n");
 
+    printf("-- Collecting states...\n");
     collectStates(esn);
-    
+    printf("-- State collection complete.\n");
+    //printMat(esn->collec->extState);
 }
 
 #endif

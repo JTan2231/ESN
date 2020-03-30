@@ -215,7 +215,7 @@ int qrHess(Matrix* H) {
             double d = sqrt(xTemp*xTemp + y*y + z*z);
 
             if (d > 1000) {
-                printf("QR FAILED: DIVERGING\n");
+                printf("-- QR FAILED: DIVERGING\n");
                 return 1;
             }
 
@@ -301,7 +301,7 @@ int qrHess(Matrix* H) {
         }
         
         if (isnan(H->array[p][q])) {
-            printf("QR FAILED: NAN\n");
+            printf("-- QR FAILED: NAN\n");
             return 1;
         }
         

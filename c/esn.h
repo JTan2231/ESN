@@ -13,9 +13,11 @@
 // - no input                                 \\
 // - teacher signal 300-step sequence of d(n) \\
 // - sigmoid units, activation f = tanh       \\
-// - 20 reservoir units                       \\
+// - 40 reservoir units                       \\
 // - 1 output unit                            \\
 //--------------------------------------------\\
+
+// TODO: Extended system states; accommodate inputs
 
 typedef struct {
     Matrix* inputs;
@@ -58,16 +60,16 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("-- batchSize: %d\n", batchSize);
     printf("-- alpha: %lf\n", alpha);
 
-    double density = 0.1;
+    double density = 0.08;
 
-    weights->reservoir = malloc(sizeof weights->reservoir);
-    //weights->outputs = malloc(sizeof weights->outputs);
-    weights->feedback = malloc(sizeof weights->feedback);
+    weights->reservoir = malloc(sizeof(weights->reservoir));
+    weights->outputs = malloc(sizeof(weights->outputs));
+    weights->feedback = malloc(sizeof(weights->feedback));
 
     if (inputs) {
         printf("Inputs initialized.\n");
-        weights->inputs = malloc(sizeof weights->inputs);
-        initRandomNormal(weights->inputs, resSize, inputs);
+        weights->inputs = malloc(sizeof(weights->inputs));
+        initRandom(weights->inputs, resSize, inputs);
     }
     else
         printf("No inputs.\n");
@@ -83,12 +85,14 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
 
     int o = 0;
     int threshold = 1000;
-    while (arnoldiSparse(weights->reservoir, &Q, &H) != 0 && o < threshold) {
+    /*while (arnoldiSparse(weights->reservoir, &Q, &H) != 0 && o < threshold) {
         reinitSparse(weights->reservoir, resSize, resSize, density);
         reinitMat(&Q, Q.rows, Q.cols);
         reinitMat(&H, H.rows, H.cols);
         o++;
-    }
+    }*/
+
+    printf("WARNING: DYSFUNCTIONAL. WORK IN PROGRESS ON ARNOLDI\n");
 
     if (o >= threshold) {
         printf("-- ARNOLDI FAILED. ABORTING.\n");
@@ -111,8 +115,10 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     scalarSparseMult(weights->reservoir, alpha);
     printf("Reservoir scaling complete.\n");
 
-    //initRandomNormal(weights->outputs, outputs, resSize + inputs);
-    initRandomNormal(weights->feedback, resSize, outputs);
+    initRandom(weights->outputs, outputs, resSize + inputs);
+    printf("Outputs initialized.\n");
+
+    initRandom(weights->feedback, resSize, outputs);
     printf("Feedback initialized.\n");
 }
 
@@ -136,10 +142,13 @@ void initStates(States* states, int inputs, int resSize, int outputs) {
     states->currentTeacher = malloc(sizeof(states->currentTeacher));
     states->output = malloc(sizeof(states->output));
 
-    initMat(states->currentState, 1, resSize);
-    initMat(states->currentState, 1, resSize + inputs);
+    initRandom(states->currentState, 1, resSize);
+    initMat(states->currentExtState, 1, resSize + inputs);
     initMat(states->currentTeacher, 1, outputs);
     initMat(states->output, 1, outputs);
+
+    for (int i = 0; i < resSize; i++)
+        states->currentExtState->array[0][i] = states->currentState->array[0][i];
 }
 
 void initNet(ESN* esn, int inputs, int resSize, int outputs, int batchSize, double alpha, int washout) {
@@ -232,7 +241,7 @@ void updateState(ESN* esn, Matrix* nextIn) {
     cleanMat(&back);
 }
 
-void updateStateNoInput(ESN* esn) {
+void updateStateNoInput(ESN* esn, int teacherForcing) {
     Matrix res, back;
 
     States* states = esn->states;
@@ -243,16 +252,27 @@ void updateStateNoInput(ESN* esn) {
 
     sparseDotFirst(weights->reservoir, states->currentState, &res);
     // change later
-    matDot(weights->feedback, states->currentTeacher, &back);
+    if (teacherForcing)
+        matDot(weights->feedback, states->currentTeacher, &back);
+    else
+        matDot(weights->feedback, states->output, &back);
 
     zeroMat(states->currentState);
 
     matAdd(&res, &back, states->currentState);
-    
+        
     logistic(states->currentState);
 
     cleanMat(&res);
     cleanMat(&back);
+}
+
+// no input
+void updateOutput(ESN* esn) {
+    Weights* weights = esn->weights;
+    States* states = esn->states;
+
+    matDot(weights->outputs, states->currentState, states->output);
 }
 
 void collectStates(ESN* esn) {
@@ -262,12 +282,17 @@ void collectStates(ESN* esn) {
 
     for (int t = 0; t < esn->washout; t++) {
         states->currentTeacher->array[0][0] = desired(t);
-        updateStateNoInput(esn);
+        updateStateNoInput(esn, 1);
     }
 
     for (int t = esn->washout; t < esn->batchSize; t++) {
+        /*printf("currentTeacher:\n");
+        printMat(states->currentTeacher);
+        printf("currentState:\n");
+        printMat(states->currentState);*/
+
         appendMatRow(collec->extState, states->currentState);
-        updateStateNoInput(esn);
+        updateStateNoInput(esn, 1);
         inverseSigmoid(states->currentTeacher);
         appendMatRow(collec->extTeacher, states->currentTeacher);
 
@@ -284,14 +309,79 @@ void collectStates(ESN* esn) {
     }
 }
 
+// uses Tikhonov Regularization to calculate output weights
+void tikhonov(ESN* esn) {
+    Collections* collec = esn->collec;
+
+    Matrix resT, R, inv, P;
+    initTranspose(collec->extState, &resT);
+    initMat(&R, resT.rows, collec->extState->cols);
+    initMat(&inv, R.rows, R.cols);
+    initMat(&P, resT.rows, collec->extTeacher->cols);
+
+    double alpha = 1;
+
+    matDot(&resT, collec->extState, &R);
+    //scalarMatDiv(&R, 300);
+    matDot(&resT, collec->extTeacher, &P);
+    //scalarMatDiv(&P, 300);
+
+    assert(R.rows == R.cols);
+
+    for (int i = 0; i < R.rows; i++)
+        R.array[i][i] += alpha*alpha;
+
+    inverse(&R, &inv);
+    matDot(&inv, &P, esn->weights->outputs);
+}
+
 void train(ESN* esn) {
     assert(esn->initialized);
     printf("Training:\n");
 
     printf("-- Collecting states...\n");
     collectStates(esn);
-    printf("-- State collection complete.\n");
+    printf("-- Success: States collected.\n");
     //printMat(esn->collec->extState);
+
+    printf("-- Calculating output weights...\n");
+    tikhonov(esn);
+    printf("-- Success: Output weights calculated.\n");
+    printMat(esn->weights->outputs);
+}
+
+// no input
+void test(ESN* esn) {
+    for (int i = 0; i < esn->states->currentTeacher->rows; i++) {
+        for (int j = 0; j < esn->states->currentTeacher->cols; j++)
+            esn->states->output->array[i][j] = esn->states->currentTeacher->array[i][j];
+    }
+
+    double sum = 0;
+    for (int i = 0; i < 50; i++) {
+        updateOutput(esn);
+        sum += pow((desired(i+300) - esn->states->output->array[0][0]), 2);
+        printf("d(n), y(n): %lf, %lf\n", desired(i+300), esn->states->output->array[0][0]);
+        //printf("Current state:\n");
+        //printMat(esn->states->currentState);
+        updateStateNoInput(esn, 0);
+    }
+
+    double mse = sum / 50;
+
+    printf("Error: %lf\n", mse);
+}
+
+void dampening(ESN* esn) {
+    Matrix* currentState = esn->states->currentState;
+    cleanMat(esn->states->currentState);
+    initRandom(currentState, currentState->rows, currentState->cols);
+    for (int i = 0; i < 500; i++) {
+        updateOutput(esn);
+        printf("output:\n");
+        printMat(esn->states->output);
+        updateStateNoInput(esn, 0);
+    }
 }
 
 #endif

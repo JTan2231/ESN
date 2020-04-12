@@ -22,12 +22,28 @@ typedef struct {
 } Matrix;
 
 typedef struct {
+    double real;
+    double i;
+} Complex;
+
+typedef struct {
+    Complex** array;
+    int rows;
+    int cols;
+    int size;
+} ComplexMatrix;
+
+typedef struct {
     double* array;
     int size;
 } Vector;
 
+typedef struct {
+    Complex* array;
+    int size;
+} ComplexVector;
+
 // TODO: Organizing this file
-// TODO: Tikhonov Regularization
 
 //----------------------------------------\\
 // Initialization                         \\
@@ -44,10 +60,39 @@ void initMat(Matrix* mat, int r, int c) {
     mat->size = r*c;
 }
 
+// handle type differences
+void initComplex(ComplexMatrix* mat, int r, int c) {
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++)
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+    
+    mat->rows = r;
+    mat->cols = c;
+    mat->size = r*c;
+}
+
+void initOnes(Matrix* mat, int r, int c) {
+    mat->array = calloc(r, sizeof(*(mat->array)));
+    for (int i = 0; i < r; i++) {
+        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+        for (int j = 0; j < c; j++)
+            mat->array[i][j] = i;
+    }
+
+    mat->rows = r;
+    mat->cols = c;
+    mat->size = r*c;
+}
+
 // initialize empty vector of given size
 void initVec(Vector* vec, int size) {
     vec->array = calloc(size, sizeof(vec->array));
     vec->size = size;
+}
+
+void initComplexVec(ComplexVector* compVec, int size) {
+    compVec->array = calloc(size, sizeof(compVec->array));
+    compVec->size = size;
 }
 
 // initialize identity matrix of size (r, c)
@@ -176,9 +221,16 @@ void initVecRandomNormal(Vector* vec, int size) {
         vec->array[i] = marsagliaPolar();
 }
 
+void initComplexVecRandomNormal(ComplexVector* compVec, int size) {
+    initComplexVec(compVec, size);
+
+    for (int i = 0; i < size; i++)
+        compVec->array[i].real = marsagliaPolar();
+}
+
 // initialize matT to be the transpose of mat
 void initTranspose(Matrix* mat, Matrix* matT) {
-    initMat(matT, mat->rows, mat->cols);
+    initMat(matT, mat->cols, mat->rows);
 
     for (int i = 0; i < matT->rows; i++) {
         for (int j = 0; j < matT->cols; j++)
@@ -195,12 +247,28 @@ void initClone(Matrix* mat, Matrix* clone) {
     }
 }
 
+void initVecClone(Vector* vec, Vector* clone) {
+    initVec(clone, vec->size);
+
+    for (int i = 0; i < vec->size; i++)
+        clone->array[i] = vec->array[i];
+}
+
 void initVecRow(Matrix* mat, int row, Vector* vec) {
     vec->array = calloc(mat->rows, sizeof(vec->array));
     vec->size = mat->rows;
     
     for (int i = 0; i < mat->rows; i++)
         vec->array[i] = mat->array[row][i];
+}
+
+// rowBegin <= i < rowEnd
+void initVecColPartial(Matrix* mat, int rowBegin, int rowEnd, int col, Vector* vec) {
+    vec->array = calloc(mat->rows, sizeof(vec->array));
+    vec->size = rowEnd - rowBegin + 1;
+
+    for (int i = rowBegin; i < rowEnd; i++)
+        vec->array[i] = mat->array[i][col];
 }
 
 // initializes a vector from a matrix column
@@ -220,6 +288,30 @@ void initSparseToMat(Sparse* sparse, Matrix* mat) {
             int matRow = sparse->array[j].array[i].first;
             int matCol = sparse->array[j].value;
             mat->array[matRow][matCol] = sparse->array[j].array[i].second;
+        }
+    }
+}
+
+void initComplexFromSparse(Sparse* sparse, ComplexMatrix* comp) {
+    initComplex(comp, sparse->rows, sparse->cols);
+
+    for (int i = 0; i < sparse->arraySize; i++) {
+        for (int j = 0; j < sparse->array[i].arraySize; i++) {
+            int matRow = sparse->array[i].array[j].first;
+            int matCol = sparse->array[i].value;
+            comp->array[matRow][matCol].real = sparse->array[j].array[i].second;
+            comp->array[matRow][matCol].i = 0;
+        }
+    }
+}
+
+void initComplexFromReal(Matrix* real, ComplexMatrix* comp) {
+    initComplex(comp, real->rows, real->cols);
+
+    for (int i = 0; i < comp->rows; i++) {
+        for (int j = 0; j < comp->cols; j++) {
+            comp->array[i][j].real = real->array[i][j];
+            comp->array[i][j].i = 0;
         }
     }
 }
@@ -262,6 +354,19 @@ void printVec(Vector* vec) {
     for (int i = 0; i < vec->size; i++)
         printf("\t%.16lf \n", vec->array[i]);
     printf("]\n");
+}
+
+// 0 == (mat == I)
+// 1 == (mat != I)
+int checkIdent(Matrix* mat) {
+    assert(mat->rows == mat->cols);
+
+    for (int i = 0; i < mat->rows; i++) {
+        if (mat->array[i][i] != 1)
+            return 0;
+    }
+
+    return 1;
 }
 
 void convertMatToVec(Matrix* mat, Vector* vec) {
@@ -328,7 +433,7 @@ void assignVecSparseRow(Vector* vec, int row, Sparse* sparse) {
         for (int j = 0; j < sparse->array[i].arraySize; j++) {
             if (sparse->array[i].array[j].first == row) {
                 int c = sparse->array[i].value;
-                int v = sparse->array[i].array[j].second;
+                double v = sparse->array[i].array[j].second;
                 vec->array[c] = v;
             }
         }
@@ -370,10 +475,29 @@ void scalarVecSub(Vector* vec, double scalar) {
         vec->array[i] -= scalar;
 }
 
-// vec = vec / scalar
+void scalarVecDiv(Vector* vec, double scalar) {
+    for (int i = 0; i < vec->size; i++)
+        vec->array[i] /= scalar;
+}
+
+// out = vec / scalar
 void scalarVecDivOut(Vector* vec, double scalar, Vector* out) {
     for (int i = 0; i < vec->size; i++)
         out->array[i] = vec->array[i] / scalar;
+}
+
+void scalarMatDiv(Matrix* mat, double scalar) {
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            mat->array[i][j] /= scalar;
+    }
+}
+
+void scalarMatSub(Matrix* mat, double scalar) {
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            mat->array[i][j] -= scalar;
+    }
 }
 
 void scalarSparseMult(Sparse* mat, double scalar) {
@@ -485,7 +609,6 @@ void vecMatDot(Vector* vec, Matrix* mat, Vector* out) {
 }
 
 // general matrix multiplication function
-// not for use with vectors
 void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     Vector v1, v2, out;
 
@@ -529,8 +652,8 @@ void matDot(Matrix* m1, Matrix* m2, Matrix* m3) {
     if (m1Vec && m2Vec) {
         assert(m3->rows == 1 && m3->cols == 1);
 
-        initVec(&v1, m1->cols);
-        initVec(&v2, m2->rows);
+        initVec(&v1, m1->size);
+        initVec(&v2, m2->size);
         convertMatToVec(m1, &v1);
         convertMatToVec(m2, &v2);
         
@@ -634,19 +757,9 @@ void sparseDotFirst(Sparse* sparse, Matrix* mat, Matrix* out) {
     int matVecCol = mat->rows == 1 && mat->cols != 1;
     Vector vec, vOut;
 
-    if (matVecRow) {
-        initVec(&vec, mat->rows);
-        initVec(&vOut, mat->rows);
-        convertMatToVec(mat, &vec);
-        sparseVecDot(sparse, &vec, &vOut);
-        convertVecToMat(&vOut, out);
-        cleanVec(&vec);
-        cleanVec(&vOut);
-        return;
-    }
-    else if (matVecCol) {
-        initVec(&vec, mat->cols);
-        initVec(&vOut, mat->cols);
+    if (matVecRow || matVecCol) {
+        initVec(&vec, mat->size);
+        initVec(&vOut, mat->size);
         convertMatToVec(mat, &vec);
         sparseVecDot(sparse, &vec, &vOut);
         convertVecToMat(&vOut, out);
@@ -718,6 +831,25 @@ void appendMatRow(Matrix* m1, Matrix* m2) {
     m1->rows = temp.rows;
 }
 
+void appendMatColVec(Matrix* mat, Vector* vec) {
+    assert(mat->cols == vec->size);
+
+    Matrix temp;
+    initMat(&temp, mat->rows, mat->cols+1);
+
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            temp.array[i][j] = mat->array[i][j];
+    }
+
+    for (int i = 0; i < vec->size; i++)
+        temp.array[i][mat->cols] = vec->array[i];
+
+    cleanMat(mat);
+    mat->array = temp.array;
+    mat->rows = temp.rows;
+}
+
 void cloneVec(Vector* v1, Vector* v2) {
     assert(v1->size == v2->size);
 
@@ -742,8 +874,10 @@ void shrinkMat(Matrix* mat, int rows, int cols) {
         newArray[i] = calloc(cols, sizeof(*newArray[i]));
 
     for (int i = 0; i < rows; i++) {
-        for (int j = 0; j < cols; j++)
+        for (int j = 0; j < cols; j++) {
+            printf("-- i, j: %d, %d\n", i, j);
             newArray[i][j] = mat->array[i][j];
+        }
     }
     
     cleanMat(mat);

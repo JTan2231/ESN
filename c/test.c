@@ -59,10 +59,12 @@ int main() {
     set(&mat, 0.64, 3, 4);
     set(&mat, -0.71, 4, 4);*/
     
-    ESN net;
-    initNet(&net, 0, 20, 1, 300, randomPositiveDouble(), 100);
+    /****ESN net;
+    initNet(&net, 0, 20, 1, 300, 0.3, 100);
     //printWeights(net.weights);
     train(&net);
+    dampening(&net);
+    //test(&net);****/
 
     /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);
@@ -130,9 +132,9 @@ int main() {
     qr.array[5][4] = 1.4143;
     qr.array[5][5] = 5.3415;
 
-    qrHess(&arnSH);*/
-    //printf("QR:\n");
-    //printMat(&qr);
+    qrHess(&qr);
+    printf("QR:\n");
+    printMat(&qr);*/
 
     //printf("QR Convergence:\n");
     //printMat(&qr);

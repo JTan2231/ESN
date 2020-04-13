@@ -97,7 +97,7 @@ int main() {
     matDot(&a, &arnSQ, &b);
     printMat(&b);
     
-    Matrix qr;
+    */Matrix qr;
     initMat(&qr, 6, 6);
     
     qr.array[0][0] = 7;
@@ -134,7 +134,7 @@ int main() {
 
     qrHess(&qr);
     printf("QR:\n");
-    printMat(&qr);*/
+    printMat(&qr);
 
     //printf("QR Convergence:\n");
     //printMat(&qr);

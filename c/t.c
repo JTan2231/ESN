@@ -32,6 +32,16 @@ int main() {
     printMat(&out);*/
 
     Sparse sparse;
+    initSparse(&sparse, 6, 6, 0.4);
+    Matrix mat;
+    initSparseToMat(&sparse, &mat);
+
+    implicitArnoldiSparse(&sparse);
+
+    printf("INPUT:\n");
+    printMat(&mat);
+    
+    /*Sparse sparse;
     Matrix mat, Q, H;
     initSparse(&sparse, 6, 6, 0.2);
     initMat(&mat, sparse.rows, sparse.cols);
@@ -103,7 +113,7 @@ int main() {
             printf("eigenvalue %d, part 1: %lf\n", i, (-1*b + sqrtf(root))/(2*a));
             printf("eigenvalue %d, part 2: %lf\n", i, (-1*b - sqrtf(root))/(2*a));
         }
-    }
+    }*/
     
     //printf("Spectral Radius: %lf\n", eig);
 

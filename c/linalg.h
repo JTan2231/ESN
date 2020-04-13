@@ -156,6 +156,9 @@ int qrFact(Matrix* mat, Matrix* Q, Matrix* R) {
 
             for (int k = 0; k < mat->rows; k++)
                 mat->array[k][j] = mat->array[k][j] - q.array[k]*R->array[i][j];
+
+            cleanVec(&q);
+            cleanVec(&a);
         }
     }
 }
@@ -205,12 +208,16 @@ int arnoldiDense(Matrix* mat, Matrix* Q, Matrix* H) {
     return 0;
 }
 
-int iStepArnoldiDense(Matrix* mat, Matrix* Q, Matrix* H, Vector* residual, int steps, int useRand) {
+int iStepArnoldiDense(Matrix* mat, Matrix* Q, Matrix* H, Vector* residual, int steps, int useRand, int start) {
+    printf("iSTEP ARNOLDI DENSE:\n");
     assert(mat->rows == Q->rows);
-    assert(Q->cols == steps);
-    assert(H->rows == steps);
-    assert(H->cols == steps);
+    /*assert(Q->cols == steps);
+    assert(H->rows == steps+1);
+    assert(H->cols == steps);*/
     assert(residual->size = mat->rows);
+
+    printf("-- residual:\n");
+    printVec(residual);
 
     Vector q, v;
     if (useRand) {
@@ -221,7 +228,8 @@ int iStepArnoldiDense(Matrix* mat, Matrix* Q, Matrix* H, Vector* residual, int s
     }
     else initVecClone(residual, &q);
 
-    for (int i = 0; i < steps; i++) {
+    for (int i = start; i < steps; i++) {
+        printf("-- step %d\n", i);
         initVec(&v, mat->rows);
         matVecDot(mat, &q, &v);
         assignMatColVec(Q, i, &q);
@@ -263,10 +271,10 @@ int arnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H) {
     arnoldiDense(&A, Q, H);
 }
 
-int iStepArnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H, Vector* residual, int steps, int useRand) {
+int iStepArnoldiSparse(Sparse* sparse, Matrix* Q, Matrix* H, Vector* residual, int steps, int useRand, int start) {
     Matrix A;
     initSparseToMat(sparse, &A);
-    return iStepArnoldiDense(&A, Q, H, residual, steps, useRand);
+    return iStepArnoldiDense(&A, Q, H, residual, steps, useRand, start);
 }
 
 
@@ -284,6 +292,7 @@ int qrHess(Matrix* H) {
         double x = pow(H->array[0][0], 2) + H->array[0][1]*H->array[1][0] - s*H->array[0][0] + t;
         double y = H->array[1][0] * (H->array[0][0] + H->array[1][1] - s);
         double z = H->array[1][0] * H->array[2][1];
+        if (y == 0 && z == 0) break;
 
         Vector u;
 
@@ -296,6 +305,7 @@ int qrHess(Matrix* H) {
             double uMag = sqrt(x*x + y*y + z*z);
             double xTemp = x - rho*uMag;
             double d = sqrt(xTemp*xTemp + y*y + z*z);
+            if (isnan(d)) break;
 
             if (d > 1000) {
                 printf("-- QR FAILED: DIVERGING\n");
@@ -353,7 +363,9 @@ int qrHess(Matrix* H) {
         int rho = -1*sgn(x);
         double xTemp = x - rho*uMag;
         double d = sqrt(xTemp*xTemp + y*y);
+        printf("xTemp, y: %lf, %lf\n", xTemp, y);
         u.array[0] = (x - rho*uMag) / d;
+        assert(!isnan(u.array[0]));
         u.array[1] = y / d;
 
         // Givens rotation P from the left
@@ -545,16 +557,57 @@ int in(double* array, double value, int size) {
     return 0;
 }
 
-// finds the magnitude of the spectral radius of given Hessenberg
-// TODO: find a workaround passing by value
-double* specHess(Matrix* H) {
+// returns index of value in array
+// if no value then -1
+int ind(double* array, double value, int size) {
+    for (int i = 0; i < size; i++) {
+        if (array[i] == value)
+            return i;
+    }
+
+    return -1;
+}
+
+// finds the magnitude of the spectral radius of given Hessenberg matrix
+double specHess(Matrix* H) {
+    double spec = 0;
+    for (int i = 0; i < H->rows-1; i++) {
+        double w = H->array[i][i];
+        double x = H->array[i][i+1];
+        double y = H->array[i+1][i];
+        double z = H->array[i+1][i+1];
+
+        double a = 1;
+        double b = w + z;
+        double c = w*z - y*x;
+
+        double root = b*b - 4*a*c;
+        double eigP = (b + sqrt(root))/(2*a);
+        double eigN = (b - sqrt(root))/(2*a);
+        if (root > 0) {
+            printf("CANDIDATES: %lf, %lf\n", eigP, eigN);
+            if (fabs(eigP) > fabs(spec))
+                spec = eigP;
+            if (fabs(eigN) > fabs(spec))
+                spec = eigN;
+        }
+    }
+
+    return spec;
+}
+
+// gets a list of eigenvalues for a Hessenberg matrix
+// ignores complex eigenvalues
+double* eigsHess(Matrix* H) {
     Matrix workCopy;
     initClone(H, &workCopy);
 
-    qrHess(&workCopy);
+    printf("EIGS HESS:\n");
+    assert(!qrHess(&workCopy));
+    printf("-- qrHess completed.\n");
 
     // solve for eigenvalues on the diagonal
-    double* spec = calloc(workCopy.rows+1, sizeof(double));
+    double* spec = calloc((workCopy.rows+1)*2, sizeof(double));
     spec[0] = workCopy.rows;
     int reals = 0;
     for (int i = 0; i < workCopy.rows-1; i++) {
@@ -584,9 +637,10 @@ double* specHess(Matrix* H) {
     }
 
     if (reals != workCopy.rows) {
-        double* temp = calloc(reals+1, sizeof(double));
+        double* temp = calloc((reals+1)*2, sizeof(double));
         temp[0] = spec[0];
         int r = 1;
+        double largest = 0;
         for (int i = 1; i < workCopy.rows+1; i++) {
             if (!isnan(spec[i])) {
                 temp[r] = spec[i];
@@ -600,6 +654,7 @@ double* specHess(Matrix* H) {
         spec = temp;
     }
 
+    printf("EIGS HESS FINISHED\n");
     return spec;
 }
 
@@ -612,38 +667,56 @@ void implicitArnoldiSparse(Sparse* sparse) {
     int steps;
     if (sparse->rows < 6 || sparse->cols < 6)
         steps = sparse->rows - 2;
-    else steps = 4;
+    else steps = 6;
 
     Matrix Q, H; // from m-step Arnoldi
     initMat(&Q, sparse->rows, steps);
-    initMat(&H, steps, steps);
+    initMat(&H, steps+1, steps);
 
     Vector f; // residual
     initVec(&f, sparse->cols);
 
-    if (iStepArnoldiSparse(sparse, &Q, &H, &f, steps, 1))
+    if (iStepArnoldiSparse(sparse, &Q, &H, &f, steps, 1, 0))
         steps = H.rows;
 
+    printf("iStep completed.\n");
+
     // TODO: convergence criterion
-    for (int i = 0; i < 50; i++) {
-        double* spec = specHess(&H);
+    for (int i = 0; i < 5; i++) {
+        double* spec = eigsHess(&H);
         int range = (int)spec[0];
+        double largest = 0;
+        int specIndex = -1;
+        for (int j = 1; j < range+1; j++) {
+            if (fabs(spec[j] > largest)) {
+                largest = fabs(spec[i]);
+                specIndex = i;
+            }
+        }
+
+        printf("IDENTITY INITIALIZATION\n");
         Matrix qTemp; // Q
         initIdent(&qTemp, steps, steps);
+        printf("IDENTITY INITIALIZED\n");
         // implicit QR step
-        for (int j = 1; j < range+1; j++) {
-            Matrix qFact, rFact; // QR factorization -- Q_j, R_j
-            initMat(&qFact, sparse->rows, sparse->rows);
-            initMat(&rFact, sparse->rows, sparse->cols);
+        for (int j = 1; j < range+1 && j != specIndex; j++) {
             Matrix shiftedH;
             initClone(&H, &shiftedH);
-            for (int i = 0; i < H.rows; i++)
+            shrinkMat(&shiftedH, H.rows-1, H.cols);
+            for (int i = 0; i < shiftedH.rows; i++)
                 shiftedH.array[i][i] -= spec[j];
+
+            Matrix qFact, rFact; // QR factorization -- Q_j, R_j
+            initMat(&qFact, shiftedH.rows, shiftedH.rows);
+            initMat(&rFact, shiftedH.rows, shiftedH.cols);
 
             qrFact(&shiftedH, &qFact, &rFact);
             cleanMat(&rFact);
             cleanMat(&shiftedH);
-            
+            printf("-- QR factorization completed\n");
+
+            shrinkMat(&H, H.rows-1, H.cols);
+
             // H_m = Q_j^T * H_m * Q_j
             Matrix temp, qFactT;
             initMat(&temp, qFact.rows, H.cols);
@@ -653,6 +726,8 @@ void implicitArnoldiSparse(Sparse* sparse) {
             matDot(&temp, &qFact, &H);
             cleanMat(&temp);
             cleanMat(&qFactT);
+
+            growMat(&H, H.rows+1, H.cols);
 
             // Q = Q * Q_j
             initMat(&temp, qTemp.rows, qFact.cols);
@@ -689,7 +764,18 @@ void implicitArnoldiSparse(Sparse* sparse) {
 
         for (int i = 1; i < H.cols; i++)
             H.array[0][i] = 0;
+
+        iStepArnoldiSparse(sparse, &Q, &H, &f, steps, 0, 1);
+
+        free(spec);
     }
+
+    shrinkMat(&H, H.rows-1, H.cols);
+
+    printf("FINISHED. H:\n");
+    printMat(&H);
+    double out = specHess(&H);
+    printf("spectral radius: %lf\n", out);
 }
 
 /*void eigsHess(ComplexMatrix* H, Vector* eigs) {

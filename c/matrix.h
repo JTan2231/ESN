@@ -51,9 +51,9 @@ typedef struct {
 
 // initialize matrix of zeros of size (r, c)
 void initMat(Matrix* mat, int r, int c) {
-    mat->array = calloc(r, sizeof(*(mat->array)));
+    mat->array = calloc(r*2, sizeof(*(mat->array)));
     for (int i = 0; i < r; i++)
-        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+        mat->array[i] = calloc(c*2, sizeof(*(mat->array[i])));
     
     mat->rows = r;
     mat->cols = c;
@@ -72,9 +72,9 @@ void initComplex(ComplexMatrix* mat, int r, int c) {
 }
 
 void initOnes(Matrix* mat, int r, int c) {
-    mat->array = calloc(r, sizeof(*(mat->array)));
+    mat->array = calloc(r+1, sizeof(*(mat->array)));
     for (int i = 0; i < r; i++) {
-        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
+        mat->array[i] = calloc(c+1, sizeof(*(mat->array[i])));
         for (int j = 0; j < c; j++)
             mat->array[i][j] = i;
     }
@@ -97,13 +97,7 @@ void initComplexVec(ComplexVector* compVec, int size) {
 
 // initialize identity matrix of size (r, c)
 void initIdent(Matrix* mat, int r, int c) {
-    mat->array = calloc(r, sizeof(*(mat->array)));
-    for (int i = 0; i < r; i++)
-        mat->array[i] = calloc(c, sizeof(*(mat->array[i])));
-    
-    mat->rows = r;
-    mat->cols = c;
-    mat->size = r*c;
+    initMat(mat, r, c);
 
     for (int i = 0; i < r; i++)
         mat->array[i][i] = 1;
@@ -166,7 +160,7 @@ void initRandomRange(Matrix* mat, int r, int c, int range) {
 // for each row where there is a value in the sparse matrix
 // eliminates unnecessary storage of zeros
 void initSparse(Sparse* mat, int r, int c, double density) {
-    mat->array = malloc(sizeof mat->array);
+    mat->array = calloc(1, sizeof(mat->array));
     mat->arraySize = 1;
     mat->density = density;
     mat->rows = r;
@@ -179,7 +173,7 @@ void initSparse(Sparse* mat, int r, int c, double density) {
     // of the max available
     // to be filled
     while (count < total) {
-        int column = randRange(c);
+        unsigned int column = randRange(c);
         int in = sparseIn(mat, column);
         if (in+1 != mat->arraySize) {
             // if the generated column number exists, check for row
@@ -214,7 +208,7 @@ void initRandomNormal(Matrix* mat, int r, int c) {
 
 // initialize vector using normally distributed random values
 void initVecRandomNormal(Vector* vec, int size) {
-    vec->array = calloc(size, sizeof(vec->array));
+    vec->array = calloc(size+1, sizeof(vec->array));
     vec->size = size;
     
     for (int i = 0; i < size; i++)
@@ -869,13 +863,36 @@ void cloneMat(Matrix* m1, Matrix* m2) {
 
 // reshape but only shrinking dimensions
 void shrinkMat(Matrix* mat, int rows, int cols) {
+    assert(rows <= mat->rows);
+    assert(cols <= mat->cols);
+
     double** newArray = calloc(rows, sizeof(*newArray));
     for (int i = 0; i < rows; i++)
         newArray[i] = calloc(cols, sizeof(*newArray[i]));
 
     for (int i = 0; i < rows; i++) {
         for (int j = 0; j < cols; j++) {
-            printf("-- i, j: %d, %d\n", i, j);
+            newArray[i][j] = mat->array[i][j];
+        }
+    }
+    
+    cleanMat(mat);
+    
+    mat->array = newArray;
+    mat->rows = rows;
+    mat->cols = cols;
+}
+
+void growMat(Matrix* mat, int rows, int cols) {
+    assert(rows >= mat->rows);
+    assert(cols >= mat->cols);
+
+    double** newArray = calloc(rows, sizeof(*newArray));
+    for (int i = 0; i < rows; i++)
+        newArray[i] = calloc(cols, sizeof(*newArray[i]));
+
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++) {
             newArray[i][j] = mat->array[i][j];
         }
     }

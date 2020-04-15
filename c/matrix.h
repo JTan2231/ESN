@@ -128,6 +128,11 @@ void zeroMat(Matrix* mat) {
     }
 }
 
+void zeroVec(Vector* vec) {
+    for (int i = 0; i < vec->size; i++)
+        vec->array[i] = 0;
+}
+
 // deallocate the given vector
 void cleanVec(Vector* vec) {
     free(vec->array);
@@ -441,6 +446,13 @@ void vecSub(Vector* v1, Vector* v2) {
         v1->array[i] -= v2->array[i];
 }
 
+void vecSubOut(Vector* v1, Vector* v2, Vector* out) {
+    assert(v1->size == v2->size);
+
+    for (int i = 0; i < v1->size; i++)
+        out->array[i] = v1->array[i] - v2->array[i];
+}
+
 void vecAdd(Vector* v1, Vector* v2) {
     assert(v1->size == v2->size);
     
@@ -461,6 +473,11 @@ void vecAddOut(Vector* v1, Vector* v2, Vector* out) {
 void scalarVec(Vector* vec, double scalar) {
     for (int i = 0; i < vec->size; i++)
         vec->array[i] *= scalar;
+}
+
+void scalarVecOut(Vector* vec, double scalar, Vector* out) {
+    for (int i = 0; i < vec->size; i++)
+        out->array[i] = vec->array[i] * scalar;\
 }
 
 // vec = vec - scalar
@@ -825,8 +842,10 @@ void appendMatRow(Matrix* m1, Matrix* m2) {
     m1->rows = temp.rows;
 }
 
+// append a column vector
+// to the right side of a matrix
 void appendMatColVec(Matrix* mat, Vector* vec) {
-    assert(mat->cols == vec->size);
+    assert(mat->rows == vec->size);
 
     Matrix temp;
     initMat(&temp, mat->rows, mat->cols+1);
@@ -841,7 +860,7 @@ void appendMatColVec(Matrix* mat, Vector* vec) {
 
     cleanMat(mat);
     mat->array = temp.array;
-    mat->rows = temp.rows;
+    mat->cols = temp.cols;
 }
 
 void cloneVec(Vector* v1, Vector* v2) {

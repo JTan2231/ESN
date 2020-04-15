@@ -59,12 +59,12 @@ int main() {
     set(&mat, 0.64, 3, 4);
     set(&mat, -0.71, 4, 4);*/
     
-    /****ESN net;
-    initNet(&net, 0, 20, 1, 300, 0.3, 100);
-    //printWeights(net.weights);
+    ESN net;
+    initNet(&net, 0, 20, 1, 300, 0.6, 50);
+    printWeights(net.weights);
     train(&net);
-    dampening(&net);
-    //test(&net);****/
+    //dampening(&net);
+    test(&net);
 
     /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);
@@ -97,7 +97,7 @@ int main() {
     matDot(&a, &arnSQ, &b);
     printMat(&b);
     
-    */Matrix qr;
+    *//*Matrix qr;
     initMat(&qr, 6, 6);
     
     qr.array[0][0] = 7;
@@ -134,7 +134,7 @@ int main() {
 
     qrHess(&qr);
     printf("QR:\n");
-    printMat(&qr);
+    printMat(&qr);*/
 
     //printf("QR Convergence:\n");
     //printMat(&qr);

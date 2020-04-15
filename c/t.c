@@ -31,7 +31,7 @@ int main() {
 
     printMat(&out);*/
 
-    Sparse sparse;
+    /**********Sparse sparse;
     initSparse(&sparse, 6, 6, 0.4);
     Matrix mat;
     initSparseToMat(&sparse, &mat);
@@ -39,7 +39,7 @@ int main() {
     implicitArnoldiSparse(&sparse);
 
     printf("INPUT:\n");
-    printMat(&mat);
+    printMat(&mat);**********/
     
     /*Sparse sparse;
     Matrix mat, Q, H;
@@ -117,8 +117,10 @@ int main() {
     
     //printf("Spectral Radius: %lf\n", eig);
 
-    /*Matrix mat, vec;
-    initMat(&mat, 5, 5);
+    Sparse sparse;
+    initSparse(&sparse, 5, 5, 0.2);
+    Matrix mat, vec;
+    initSparseToMat(&sparse, &mat);
     initMat(&vec, 5, 1);
     vec.array[0][0] = 1;
     vec.array[1][0] = 1;
@@ -154,5 +156,5 @@ int main() {
     printf("Check 3. Original vs product:\n");
     printMat(&mat);
     printf("vs\n");
-    printMat(&out3);*/
+    printMat(&out3);
 }

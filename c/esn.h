@@ -7,6 +7,8 @@
 #include "linalg.h"
 #include "generation.h"
 
+#define SPECTOL 0.001
+
 //--------------------------------------------\\
 // Net details:                               \\
 // - desired sinewave d(n) = 1/2(sin(n/4))    \\
@@ -60,7 +62,7 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("-- batchSize: %d\n", batchSize);
     printf("-- alpha: %lf\n", alpha);
 
-    double density = 0.08;
+    double density = 0.05;
 
     weights->reservoir = malloc(sizeof(weights->reservoir));
     weights->outputs = malloc(sizeof(weights->outputs));
@@ -74,42 +76,22 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     else
         printf("No inputs.\n");
 
+    int limit = 100;
+
     initSparse(weights->reservoir, resSize, resSize, density);
     printf("Reservoir initialized.\nScaling...\n");
     // Scale the reservoir
-    Matrix Q, H, mat;
-    Vector eigVals;
-    initMat(&Q, resSize, resSize);
-    initMat(&H, resSize+1, resSize);
-    initMat(&mat, resSize, resSize);
-
-    int o = 0;
-    int threshold = 1000;
-    /*while (arnoldiSparse(weights->reservoir, &Q, &H) != 0 && o < threshold) {
-        reinitSparse(weights->reservoir, resSize, resSize, density);
-        reinitMat(&Q, Q.rows, Q.cols);
-        reinitMat(&H, H.rows, H.cols);
-        o++;
-    }*/
-
-    printf("WARNING: DYSFUNCTIONAL. WORK IN PROGRESS ON ARNOLDI\n");
-
-    if (o >= threshold) {
-        printf("-- ARNOLDI FAILED. ABORTING.\n");
-        assert(0);
+    double spec = fabs(spectralRadius(weights->reservoir));
+    for (int i = 0; i < limit && spec < SPECTOL; i++) {
+        printf("Warning: scaling failed. Reinitializing...\n");
+        cleanSparse(weights->reservoir);
+        initSparse(weights->reservoir, resSize, resSize, density);
+        spec = spectralRadius(weights->reservoir);
     }
 
-    printf("-- Arnoldi completed.\n");
-
-    sparseToMat(weights->reservoir, &mat);
-    shrinkMat(&H, Q.rows, Q.cols);
-    assert(!qrHess(&H));
-    printf("-- QR Algorithm complete.\n");
-    double spec = 0;
-    for (int i = 0; i < H.rows; i++) {
-        if (fabs(H.array[i][i]) > spec)
-            spec = fabs(H.array[i][i]);
-    }
+    printf("pre-scaled reservoir:\n");
+    sparsePrint(weights->reservoir);
+    printf("spectral radius: %lf\n", spec);
 
     scalarSparseDiv(weights->reservoir, spec);
     scalarSparseMult(weights->reservoir, alpha);
@@ -233,7 +215,7 @@ void updateState(ESN* esn, Matrix* nextIn) {
 
     matAdd(&in, &res, states->currentState);
     matAdd(states->currentState, &back, states->currentState);
-    
+
     logistic(states->currentState);
 
     cleanMat(&in);
@@ -251,17 +233,22 @@ void updateStateNoInput(ESN* esn, int teacherForcing) {
     initMat(&back, weights->feedback->rows, states->currentTeacher->size);
 
     sparseDotFirst(weights->reservoir, states->currentState, &res);
+    //printf("res:\n");
+    //printMat(&res);
     // change later
     if (teacherForcing)
         matDot(weights->feedback, states->currentTeacher, &back);
     else
         matDot(weights->feedback, states->output, &back);
 
+    //printf("back:\n");
+    //printMat(&back);
+
     zeroMat(states->currentState);
 
     matAdd(&res, &back, states->currentState);
-        
-    logistic(states->currentState);
+
+    sigmoid(states->currentState);
 
     cleanMat(&res);
     cleanMat(&back);
@@ -319,19 +306,18 @@ void tikhonov(ESN* esn) {
     initMat(&inv, R.rows, R.cols);
     initMat(&P, resT.rows, collec->extTeacher->cols);
 
-    double alpha = 1;
+    double alpha = 1.3;
 
     matDot(&resT, collec->extState, &R);
-    //scalarMatDiv(&R, 300);
+    //scalarMatDiv(&R, esn->batchSize - esn->washout);
     matDot(&resT, collec->extTeacher, &P);
-    //scalarMatDiv(&P, 300);
-
-    assert(R.rows == R.cols);
+    //scalarMatDiv(&P, esn->batchSize - esn->washout);
 
     for (int i = 0; i < R.rows; i++)
         R.array[i][i] += alpha*alpha;
 
     inverse(&R, &inv);
+
     matDot(&inv, &P, esn->weights->outputs);
 }
 
@@ -358,28 +344,27 @@ void test(ESN* esn) {
     }
 
     double sum = 0;
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 500; i++) {
         updateOutput(esn);
-        sum += pow((desired(i+300) - esn->states->output->array[0][0]), 2);
+        sum += pow((desired(i+esn->batchSize) - esn->states->output->array[0][0]), 2);
         printf("d(n), y(n): %lf, %lf\n", desired(i+300), esn->states->output->array[0][0]);
         //printf("Current state:\n");
         //printMat(esn->states->currentState);
         updateStateNoInput(esn, 0);
     }
 
-    double mse = sum / 50;
+    double mse = sum / 50.;
 
-    printf("Error: %lf\n", mse);
+    printf("Error: %.15lf\n", mse);
 }
 
 void dampening(ESN* esn) {
     Matrix* currentState = esn->states->currentState;
     cleanMat(esn->states->currentState);
     initRandom(currentState, currentState->rows, currentState->cols);
-    for (int i = 0; i < 500; i++) {
+    for (int i = 0; i < 50; i++) {
         updateOutput(esn);
-        printf("output:\n");
-        printMat(esn->states->output);
+        printf("output %d: %.15lf\n", i, esn->states->output->array[0][0]);
         updateStateNoInput(esn, 0);
     }
 }

@@ -7,7 +7,9 @@
 #include "linalg.h"
 #include "generation.h"
 
-#define SPECTOL 0.001
+#define SPECMIN 0.5
+#define SPECMAX 0.85
+#define GNUPLOT "gnuplot -persist"
 
 //--------------------------------------------\\
 // Net details:                               \\
@@ -62,15 +64,15 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("-- batchSize: %d\n", batchSize);
     printf("-- alpha: %lf\n", alpha);
 
-    double density = 0.05;
+    double density = 1. / (double)resSize;
 
-    weights->reservoir = malloc(sizeof(weights->reservoir));
-    weights->outputs = malloc(sizeof(weights->outputs));
-    weights->feedback = malloc(sizeof(weights->feedback));
+    weights->reservoir = malloc(sizeof(*(weights->reservoir)));
+    weights->outputs = malloc(sizeof(*(weights->outputs)));
+    weights->feedback = malloc(sizeof(*(weights->feedback)));
 
     if (inputs) {
         printf("Inputs initialized.\n");
-        weights->inputs = malloc(sizeof(weights->inputs));
+        weights->inputs = malloc(sizeof(*(weights->inputs)));
         initRandom(weights->inputs, resSize, inputs);
     }
     else
@@ -81,32 +83,34 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     initSparse(weights->reservoir, resSize, resSize, density);
     printf("Reservoir initialized.\nScaling...\n");
     // Scale the reservoir
-    double spec = fabs(spectralRadius(weights->reservoir));
-    for (int i = 0; i < limit && spec < SPECTOL; i++) {
+    double spec = spectralRadius(weights->reservoir);
+    for (int i = 0; i < limit && (spec < SPECMIN || spec > SPECMAX); i++) {
         printf("Warning: scaling failed. Reinitializing...\n");
         cleanSparse(weights->reservoir);
         initSparse(weights->reservoir, resSize, resSize, density);
         spec = spectralRadius(weights->reservoir);
     }
 
-    printf("pre-scaled reservoir:\n");
-    sparsePrint(weights->reservoir);
-    printf("spectral radius: %lf\n", spec);
+    //printf("pre-scaled reservoir:\n");
+    //sparsePrint(weights->reservoir);
+    printf("|spectral radius|: %lf\n", spec);
 
     scalarSparseDiv(weights->reservoir, spec);
     scalarSparseMult(weights->reservoir, alpha);
     printf("Reservoir scaling complete.\n");
+    sparsePrint(weights->reservoir);
 
-    initRandom(weights->outputs, outputs, resSize + inputs);
+    initIdent(weights->outputs, outputs, resSize + inputs);
     printf("Outputs initialized.\n");
 
     initRandom(weights->feedback, resSize, outputs);
+    scalarMatMult(weights->feedback, 2.);
     printf("Feedback initialized.\n");
 }
 
 void initCollections(Collections* collec, int inputs, int resSize, int outputs, int batchSize) {
-    collec->extState = malloc(sizeof(collec->extState));
-    collec->extTeacher = malloc(sizeof(collec->extTeacher));
+    collec->extState = malloc(sizeof(*(collec->extState)));
+    collec->extTeacher = malloc(sizeof(*(collec->extTeacher)));
 
     // these are initialized to one because
     // collected states are appended to the matrix
@@ -119,10 +123,10 @@ void initCollections(Collections* collec, int inputs, int resSize, int outputs, 
 }
 
 void initStates(States* states, int inputs, int resSize, int outputs) {
-    states->currentState = malloc(sizeof(states->currentState));
-    states->currentExtState = malloc(sizeof(states->currentState));
-    states->currentTeacher = malloc(sizeof(states->currentTeacher));
-    states->output = malloc(sizeof(states->output));
+    states->currentState = malloc(sizeof(*(states->currentState)));
+    states->currentExtState = malloc(sizeof(*(states->currentState)));
+    states->currentTeacher = malloc(sizeof(*(states->currentTeacher)));
+    states->output = malloc(sizeof(*(states->output)));
 
     initRandom(states->currentState, 1, resSize);
     initMat(states->currentExtState, 1, resSize + inputs);
@@ -134,9 +138,9 @@ void initStates(States* states, int inputs, int resSize, int outputs) {
 }
 
 void initNet(ESN* esn, int inputs, int resSize, int outputs, int batchSize, double alpha, int washout) {
-    esn->weights = malloc(sizeof(esn->weights));
-    esn->collec = malloc(sizeof(esn->collec));
-    esn->states = malloc(sizeof(esn->states));
+    esn->weights = malloc(sizeof(*(esn->weights)));
+    esn->collec = malloc(sizeof(*(esn->collec)));
+    esn->states = malloc(sizeof(*(esn->states)));
 
     initWeights(esn->weights, inputs, resSize, outputs, batchSize, alpha);
     initCollections(esn->collec, inputs, resSize, outputs, batchSize);
@@ -151,6 +155,36 @@ void initNet(ESN* esn, int inputs, int resSize, int outputs, int batchSize, doub
     esn->initialized = 1;
 
     printf("Initialization complete.\n");
+}
+
+void cleanWeights(Weights* weights, int inputs) {
+    if (inputs)
+        cleanMat(weights->inputs);
+
+    cleanSparse(weights->reservoir);
+    cleanMat(weights->outputs);
+    cleanMat(weights->feedback);
+}
+
+void cleanCollections(Collections* collec) {
+    cleanMat(collec->extState);
+    cleanMat(collec->extTeacher);
+}
+
+void cleanStates(States* states) {
+    cleanMat(states->currentState);
+    cleanMat(states->currentExtState);
+    cleanMat(states->currentTeacher);
+    cleanMat(states->output);
+}
+
+void cleanNet(ESN* esn) {
+    cleanWeights(esn->weights, esn->inputs);
+    printf("weights cleaned\n");
+    cleanCollections(esn->collec);
+    printf("collections cleaned\n");
+    cleanStates(esn->states);
+    printf("states cleaned\n");
 }
 
 void printWeights(Weights* weights) {
@@ -193,7 +227,18 @@ void inverseSigmoid(Matrix* mat) {
 // get the desired output
 // for a sin wave generator
 double desired(int t) {
-    return (1./2.)*sin(t/4.);
+    //return sin(3.14*t/8);
+    return sin(3.14*t/16);
+}
+
+// adds a random noise term to each item in the matrix
+// -0.001 < x < 0.001
+void noise(Matrix* mat) {
+    double divisor = 100.;
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            mat->array[i][j] += randomDouble() / divisor;
+    }
 }
 
 void updateState(ESN* esn, Matrix* nextIn) {
@@ -236,13 +281,12 @@ void updateStateNoInput(ESN* esn, int teacherForcing) {
     //printf("res:\n");
     //printMat(&res);
     // change later
-    if (teacherForcing)
+    if (teacherForcing) {
         matDot(weights->feedback, states->currentTeacher, &back);
+        noise(&back);
+    }
     else
         matDot(weights->feedback, states->output, &back);
-
-    //printf("back:\n");
-    //printMat(&back);
 
     zeroMat(states->currentState);
 
@@ -280,19 +324,14 @@ void collectStates(ESN* esn) {
 
         appendMatRow(collec->extState, states->currentState);
         updateStateNoInput(esn, 1);
-        inverseSigmoid(states->currentTeacher);
+        sigmoid(states->currentTeacher);
         appendMatRow(collec->extTeacher, states->currentTeacher);
 
-        Matrix newTeach;
-        initMat(&newTeach, states->currentTeacher->rows, states->currentTeacher->cols);
         // TODO: Update for a more general approach (i.e. don't rely on a function)
-        for (int i = 0; i < newTeach.rows; i++) {
-            for (int j = 0; j < newTeach.cols; j++)
-                newTeach.array[i][j] = desired(t);
+        for (int i = 0; i < states->currentTeacher->rows; i++) {
+            for (int j = 0; j < states->currentTeacher->cols; j++)
+                states->currentTeacher->array[i][j] = desired(t);
         }
-
-        cleanMat(states->currentTeacher);
-        states->currentTeacher->array = newTeach.array;
     }
 }
 
@@ -306,7 +345,7 @@ void tikhonov(ESN* esn) {
     initMat(&inv, R.rows, R.cols);
     initMat(&P, resT.rows, collec->extTeacher->cols);
 
-    double alpha = 1.3;
+    double alpha = 3.;
 
     matDot(&resT, collec->extState, &R);
     //scalarMatDiv(&R, esn->batchSize - esn->washout);
@@ -319,6 +358,11 @@ void tikhonov(ESN* esn) {
     inverse(&R, &inv);
 
     matDot(&inv, &P, esn->weights->outputs);
+
+    cleanMat(&resT);
+    cleanMat(&R);
+    cleanMat(&inv);
+    cleanMat(&P);
 }
 
 void train(ESN* esn) {
@@ -333,40 +377,92 @@ void train(ESN* esn) {
     printf("-- Calculating output weights...\n");
     tikhonov(esn);
     printf("-- Success: Output weights calculated.\n");
-    printMat(esn->weights->outputs);
+    //printMat(esn->weights->outputs);
 }
 
 // no input
-void test(ESN* esn) {
-    for (int i = 0; i < esn->states->currentTeacher->rows; i++) {
+double test(ESN* esn) {
+    /*for (int i = 0; i < esn->states->currentTeacher->rows; i++) {
         for (int j = 0; j < esn->states->currentTeacher->cols; j++)
             esn->states->output->array[i][j] = esn->states->currentTeacher->array[i][j];
+    }*/
+
+    FILE* net;
+    FILE* teacher;
+    net = fopen("testData.txt", "w");
+    teacher = fopen("teacherData.txt", "w");
+
+    if (net == NULL || teacher == NULL) {
+        printf("error opening file\n");
+        exit(1);
     }
 
     double sum = 0;
-    for (int i = 0; i < 500; i++) {
+    int testSize = 250;
+    for (int i = 0; i < testSize; i++) {
         updateOutput(esn);
-        sum += pow((desired(i+esn->batchSize) - esn->states->output->array[0][0]), 2);
-        printf("d(n), y(n): %lf, %lf\n", desired(i+300), esn->states->output->array[0][0]);
+        sum += pow((desired(i) - esn->states->output->array[0][0]), 2);
+        fprintf(net, "%d %.15lf %.15lf\n", i, desired(i), esn->states->output->array[0][0]);
+        fprintf(teacher, "%d %.15lf\n", i, desired(i));
         //printf("Current state:\n");
         //printMat(esn->states->currentState);
         updateStateNoInput(esn, 0);
     }
 
-    double mse = sum / 50.;
+    fclose(net);
+    fclose(teacher);
 
-    printf("Error: %.15lf\n", mse);
+    double mse = sum / testSize;
+
+    return mse;
+}
+
+void sample(ESN* net, int trials, int inputs, int resSize, int outputs, int batchSize, double alpha, int washout) {
+    double sigma = 0;
+    for (int i = 0; i < trials; i++) {
+        initNet(net, inputs, resSize, outputs, batchSize, alpha, washout);
+        train(net);
+        double mse = test(net);
+        sigma += mse;
+        printf("Trial %d MSE: %.15lf\n", i+1, mse);
+        cleanNet(net);
+    }
+
+    double average = sigma / (double)trials;
+    printf("Average MSE: %.15lf\n", average);
+}
+
+void displayTestData() {
+    FILE* gp;
+    gp = popen(GNUPLOT, "w");
+    fprintf(gp, "plot 'testData.txt' using 1:2 lt rgb \"red\" with lines, 'testData.txt' using 1:3 lt rgb \"blue\" with lines\n");
 }
 
 void dampening(ESN* esn) {
+    FILE* net;
+    net = fopen("dampData.txt", "w");
+
+    if (net == NULL) {
+        printf("error opening file\n");
+        exit(1);
+    }
+
     Matrix* currentState = esn->states->currentState;
     cleanMat(esn->states->currentState);
     initRandom(currentState, currentState->rows, currentState->cols);
-    for (int i = 0; i < 50; i++) {
+    for (int i = 0; i < 45; i++) {
         updateOutput(esn);
-        printf("output %d: %.15lf\n", i, esn->states->output->array[0][0]);
+        fprintf(net, "%.15lf\n", esn->states->output->array[0][0]);
         updateStateNoInput(esn, 0);
     }
+
+    fclose(net);
+}
+
+void displayDampData() {
+    FILE* gp;
+    gp = popen(GNUPLOT, "w");
+    fprintf(gp, "plot 'dampData.txt' using 1 lt rgb \"blue\" with lines\n");
 }
 
 #endif

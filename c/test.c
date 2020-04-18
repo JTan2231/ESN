@@ -60,11 +60,24 @@ int main() {
     set(&mat, -0.71, 4, 4);*/
     
     ESN net;
-    initNet(&net, 0, 20, 1, 300, 0.6, 50);
-    printWeights(net.weights);
-    train(&net);
-    //dampening(&net);
-    test(&net);
+
+    int trials = 50;
+    int inputs = 0;
+    int resSize = 20;
+    int outputs = 1;
+    int batchSize = 300;
+    int washout = 100;
+    double alpha = 0.75;
+
+    //net.weights = malloc(sizeof(*(net.weights)));
+    //initWeights(net.weights, 10, 10, 10, 10, 10);
+
+    //sample(&net, trials, inputs, resSize, outputs, batchSize, alpha, washout);
+    initNet(&net, inputs, resSize, outputs, batchSize, alpha, washout);
+    //train(&net);
+    //test(&net);
+    dampening(&net);
+    displayDampData();
 
     /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);

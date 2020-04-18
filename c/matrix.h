@@ -511,6 +511,13 @@ void scalarMatSub(Matrix* mat, double scalar) {
     }
 }
 
+void scalarMatMult(Matrix* mat, double scalar) {
+    for (int i = 0; i < mat->rows; i++) {
+        for (int j = 0; j < mat->cols; j++)
+            mat->array[i][j] *= scalar;
+    }
+}
+
 void scalarSparseMult(Sparse* mat, double scalar) {
     for (int i = 0; i < mat->arraySize; i++) {
         for (int j = 0; j < mat->array[i].arraySize; j++)

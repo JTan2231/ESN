@@ -7,8 +7,7 @@
 #include "linalg.h"
 #include "generation.h"
 
-#define SPECMIN 0.5
-#define SPECMAX 0.85
+#define SPECMIN 0.1
 #define GNUPLOT "gnuplot -persist"
 
 //--------------------------------------------\\
@@ -56,6 +55,9 @@ typedef struct {
     Weights* weights;
 } ESN;
 
+int dampening(ESN* esn);
+void cleanWeights(Weights* weights, int inputs);
+
 void initWeights(Weights* weights, int inputs, int resSize, int outputs, int batchSize, double alpha) {
     printf("Diagnostic:\n");
     printf("-- inputs: %d\n", inputs);
@@ -64,7 +66,7 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("-- batchSize: %d\n", batchSize);
     printf("-- alpha: %lf\n", alpha);
 
-    double density = 1. / (double)resSize;
+    double density = 0.1;//1. / (double)resSize;
 
     weights->reservoir = malloc(sizeof(*(weights->reservoir)));
     weights->outputs = malloc(sizeof(*(weights->outputs)));
@@ -84,7 +86,7 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("Reservoir initialized.\nScaling...\n");
     // Scale the reservoir
     double spec = spectralRadius(weights->reservoir);
-    for (int i = 0; i < limit && (spec < SPECMIN || spec > SPECMAX); i++) {
+    for (int i = 0; i < limit && spec < SPECMIN; i++) {
         printf("Warning: scaling failed. Reinitializing...\n");
         cleanSparse(weights->reservoir);
         initSparse(weights->reservoir, resSize, resSize, density);
@@ -98,7 +100,6 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     scalarSparseDiv(weights->reservoir, spec);
     scalarSparseMult(weights->reservoir, alpha);
     printf("Reservoir scaling complete.\n");
-    sparsePrint(weights->reservoir);
 
     initIdent(weights->outputs, outputs, resSize + inputs);
     printf("Outputs initialized.\n");
@@ -153,6 +154,19 @@ void initNet(ESN* esn, int inputs, int resSize, int outputs, int batchSize, doub
     esn->washout = washout;
 
     esn->initialized = 1;
+
+    printf("Looking for echo state property...\n");
+    int limit = 500;
+    int i = 0;
+    for (; i < limit && dampening(esn);) {
+        printf("-- Attempt %d\n", ++i);
+        cleanWeights(esn->weights, esn->inputs);
+        initWeights(esn->weights, inputs, resSize, outputs, batchSize, alpha);
+    }
+    
+    printf("Echo state property found.\n");
+    printf("Final reservoir:\n");
+    sparsePrint(esn->weights->reservoir);
 
     printf("Initialization complete.\n");
 }
@@ -228,7 +242,7 @@ void inverseSigmoid(Matrix* mat) {
 // for a sin wave generator
 double desired(int t) {
     //return sin(3.14*t/8);
-    return sin(3.14*t/16);
+    return 0.5*sin(3.14*t/32.);
 }
 
 // adds a random noise term to each item in the matrix
@@ -345,7 +359,7 @@ void tikhonov(ESN* esn) {
     initMat(&inv, R.rows, R.cols);
     initMat(&P, resT.rows, collec->extTeacher->cols);
 
-    double alpha = 3.;
+    double alpha = 1.5;
 
     matDot(&resT, collec->extState, &R);
     //scalarMatDiv(&R, esn->batchSize - esn->washout);
@@ -378,6 +392,9 @@ void train(ESN* esn) {
     tikhonov(esn);
     printf("-- Success: Output weights calculated.\n");
     //printMat(esn->weights->outputs);
+
+    cleanCollections(esn->collec);
+    initCollections(esn->collec, esn->inputs, esn->resSize, esn->outputs, esn->batchSize);
 }
 
 // no input
@@ -438,7 +455,7 @@ void displayTestData() {
     fprintf(gp, "plot 'testData.txt' using 1:2 lt rgb \"red\" with lines, 'testData.txt' using 1:3 lt rgb \"blue\" with lines\n");
 }
 
-void dampening(ESN* esn) {
+int dampening(ESN* esn) {
     FILE* net;
     net = fopen("dampData.txt", "w");
 
@@ -450,13 +467,26 @@ void dampening(ESN* esn) {
     Matrix* currentState = esn->states->currentState;
     cleanMat(esn->states->currentState);
     initRandom(currentState, currentState->rows, currentState->cols);
-    for (int i = 0; i < 45; i++) {
+    for (int i = 0; i < 150; i++) {
         updateOutput(esn);
         fprintf(net, "%.15lf\n", esn->states->output->array[0][0]);
         updateStateNoInput(esn, 0);
     }
 
     fclose(net);
+
+    double previous = esn->states->output->array[0][0];
+    double convergenceTol = 0.00000000001;
+    for (int i = 0; i < 50; i++) {
+        updateOutput(esn);
+        if (fabs(esn->states->output->array[0][0] - previous) < convergenceTol
+         && fabs(esn->states->output->array[0][0]) < convergenceTol)
+            return 0; // waveform converged to zero
+
+        updateStateNoInput(esn, 0);
+    }
+
+    return 1;
 }
 
 void displayDampData() {

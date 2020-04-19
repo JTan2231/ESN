@@ -63,7 +63,7 @@ int main() {
 
     int trials = 50;
     int inputs = 0;
-    int resSize = 20;
+    int resSize = 10;
     int outputs = 1;
     int batchSize = 300;
     int washout = 100;
@@ -74,10 +74,10 @@ int main() {
 
     //sample(&net, trials, inputs, resSize, outputs, batchSize, alpha, washout);
     initNet(&net, inputs, resSize, outputs, batchSize, alpha, washout);
-    //train(&net);
-    //test(&net);
-    dampening(&net);
-    displayDampData();
+    train(&net);
+    test(&net);
+    //dampening(&net);
+    displayTestData();
 
     /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);

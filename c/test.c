@@ -65,7 +65,7 @@ int main() {
     int inputs = 0;
     int resSize = 10;
     int outputs = 1;
-    int batchSize = 300;
+    int batchSize = 500;
     int washout = 100;
     double alpha = 0.75;
 
@@ -75,9 +75,11 @@ int main() {
     //sample(&net, trials, inputs, resSize, outputs, batchSize, alpha, washout);
     initNet(&net, inputs, resSize, outputs, batchSize, alpha, washout);
     train(&net);
-    test(&net);
+    double mse = test(&net);
     //dampening(&net);
     displayTestData();
+
+    printf("mse: %.15lf\n", mse);
 
     /*Matrix a, b;
     initMat(&a, sparse.rows, sparse.cols);

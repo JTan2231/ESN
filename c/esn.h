@@ -55,6 +55,8 @@ typedef struct {
     Weights* weights;
 } ESN;
 
+enum stateUpdateVersion {DEFAULT, STEIL};
+
 int dampening(ESN* esn);
 void cleanWeights(Weights* weights, int inputs);
 
@@ -242,7 +244,7 @@ void inverseSigmoid(Matrix* mat) {
 // for a sin wave generator
 double desired(int t) {
     //return sin(3.14*t/8);
-    return 0.5*sin(3.14*t/32.);
+    return sin(3.14*t/32.);
 }
 
 // adds a random noise term to each item in the matrix
@@ -282,9 +284,8 @@ void updateState(ESN* esn, Matrix* nextIn) {
     cleanMat(&back);
 }
 
-void updateStateNoInput(ESN* esn, int teacherForcing) {
+void updateStateNoInput(ESN* esn, int which, int teacherForcing) {
     Matrix res, back;
-
     States* states = esn->states;
     Weights* weights = esn->weights;
 
@@ -302,11 +303,29 @@ void updateStateNoInput(ESN* esn, int teacherForcing) {
     else
         matDot(weights->feedback, states->output, &back);
 
-    zeroMat(states->currentState);
+    if (which == STEIL) {
+        double leakRate = 0.1;
+        scalarMatMult(states->currentState, 1 - leakRate);
+        
+        Matrix temp;
+        initMat(&temp, res.rows, res.cols);
+        matAdd(&res, &back, &temp);
+        sigmoid(&temp);
 
-    matAdd(&res, &back, states->currentState);
+        scalarMatMult(&temp, leakRate);
 
-    sigmoid(states->currentState);
+        matAdd(&temp, states->currentState, states->currentState);
+
+        cleanMat(&temp);
+    }
+
+    else {
+        zeroMat(states->currentState);
+
+        matAdd(&res, &back, states->currentState);
+
+        sigmoid(states->currentState);
+    }
 
     cleanMat(&res);
     cleanMat(&back);
@@ -327,7 +346,7 @@ void collectStates(ESN* esn) {
 
     for (int t = 0; t < esn->washout; t++) {
         states->currentTeacher->array[0][0] = desired(t);
-        updateStateNoInput(esn, 1);
+        updateStateNoInput(esn, STEIL, 1);
     }
 
     for (int t = esn->washout; t < esn->batchSize; t++) {
@@ -337,7 +356,7 @@ void collectStates(ESN* esn) {
         printMat(states->currentState);*/
 
         appendMatRow(collec->extState, states->currentState);
-        updateStateNoInput(esn, 1);
+        updateStateNoInput(esn, STEIL, 1);
         sigmoid(states->currentTeacher);
         appendMatRow(collec->extTeacher, states->currentTeacher);
 
@@ -359,7 +378,7 @@ void tikhonov(ESN* esn) {
     initMat(&inv, R.rows, R.cols);
     initMat(&P, resT.rows, collec->extTeacher->cols);
 
-    double alpha = 1.5;
+    double alpha = 0.5;
 
     matDot(&resT, collec->extState, &R);
     //scalarMatDiv(&R, esn->batchSize - esn->washout);
@@ -423,7 +442,7 @@ double test(ESN* esn) {
         fprintf(teacher, "%d %.15lf\n", i, desired(i));
         //printf("Current state:\n");
         //printMat(esn->states->currentState);
-        updateStateNoInput(esn, 0);
+        updateStateNoInput(esn, STEIL, 0);
     }
 
     fclose(net);
@@ -470,7 +489,7 @@ int dampening(ESN* esn) {
     for (int i = 0; i < 150; i++) {
         updateOutput(esn);
         fprintf(net, "%.15lf\n", esn->states->output->array[0][0]);
-        updateStateNoInput(esn, 0);
+        updateStateNoInput(esn, STEIL, 0);
     }
 
     fclose(net);
@@ -483,7 +502,7 @@ int dampening(ESN* esn) {
          && fabs(esn->states->output->array[0][0]) < convergenceTol)
             return 0; // waveform converged to zero
 
-        updateStateNoInput(esn, 0);
+        updateStateNoInput(esn, STEIL, 0);
     }
 
     return 1;

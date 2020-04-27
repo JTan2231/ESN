@@ -7,7 +7,7 @@
 #include "linalg.h"
 #include "generation.h"
 
-#define SPECMIN 0.1
+#define SPECMIN 0.001
 #define GNUPLOT "gnuplot -persist"
 
 //--------------------------------------------\\
@@ -68,7 +68,7 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("-- batchSize: %d\n", batchSize);
     printf("-- alpha: %lf\n", alpha);
 
-    double density = 0.1;//1. / (double)resSize;
+    double density = 1. / (double)resSize;
 
     weights->reservoir = malloc(sizeof(*(weights->reservoir)));
     weights->outputs = malloc(sizeof(*(weights->outputs)));
@@ -88,8 +88,8 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     printf("Reservoir initialized.\nScaling...\n");
     // Scale the reservoir
     double spec = spectralRadius(weights->reservoir);
-    for (int i = 0; i < limit && spec < SPECMIN; i++) {
-        printf("Warning: scaling failed. Reinitializing...\n");
+    for (int i = 0; i < limit && fabs(spec) < SPECMIN; i++) {
+        printf("Warning: scaling failed (spec == %.15lf). Reinitializing...\n", spec);
         cleanSparse(weights->reservoir);
         initSparse(weights->reservoir, resSize, resSize, density);
         spec = spectralRadius(weights->reservoir);
@@ -164,6 +164,7 @@ void initNet(ESN* esn, int inputs, int resSize, int outputs, int batchSize, doub
         printf("-- Attempt %d\n", ++i);
         cleanWeights(esn->weights, esn->inputs);
         initWeights(esn->weights, inputs, resSize, outputs, batchSize, alpha);
+        printf("-- NO ECHO STATE FOUND. Trying again...\n");
     }
     
     printf("Echo state property found.\n");
@@ -244,7 +245,7 @@ void inverseSigmoid(Matrix* mat) {
 // for a sin wave generator
 double desired(int t) {
     //return sin(3.14*t/8);
-    return sin(3.14*t/32.);
+    return 0.5*sin(3.14*t/64.);
 }
 
 // adds a random noise term to each item in the matrix
@@ -304,7 +305,7 @@ void updateStateNoInput(ESN* esn, int which, int teacherForcing) {
         matDot(weights->feedback, states->output, &back);
 
     if (which == STEIL) {
-        double leakRate = 0.1;
+        double leakRate = 0.05;
         scalarMatMult(states->currentState, 1 - leakRate);
         
         Matrix temp;
@@ -350,11 +351,6 @@ void collectStates(ESN* esn) {
     }
 
     for (int t = esn->washout; t < esn->batchSize; t++) {
-        /*printf("currentTeacher:\n");
-        printMat(states->currentTeacher);
-        printf("currentState:\n");
-        printMat(states->currentState);*/
-
         appendMatRow(collec->extState, states->currentState);
         updateStateNoInput(esn, STEIL, 1);
         sigmoid(states->currentTeacher);

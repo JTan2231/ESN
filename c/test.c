@@ -63,10 +63,10 @@ int main() {
 
     int trials = 50;
     int inputs = 0;
-    int resSize = 10;
+    int resSize = 20;
     int outputs = 1;
     int batchSize = 500;
-    int washout = 100;
+    int washout = 10;
     double alpha = 0.75;
 
     //net.weights = malloc(sizeof(*(net.weights)));

@@ -126,6 +126,14 @@ int qrFact(Matrix* mat, Matrix* Q, Matrix* R) {
 // -- H
 // -- -- (k, k) to (k+p, k+p)
 //
+// PARAMETERS:
+// -- Matrix* mat: matrix from which to form Arnoldi factorization
+// -- Matrix* Q: matrix in which to store orthogonal basis vectors
+// -- Matrix* H: matrix in which to store Hessenberg values
+// -- Vector* f: residual vector orthogonal to Q
+// -- int k: number of previously conducted Arnoldi steps (size of Q cols)
+// -- int p: number to which additional Arnoldi steps are conducted
+//
 // see Algorithm 2.1, page 3 of:
 // -- https://pdfs.semanticscholar.org/9b61/ec78bb1605143b60a7aafcde9fa39cb7e14a.pdf
 void kStepArnoldi(Matrix* mat, Matrix* Q, Matrix* H, Vector* f, int k, int p) {
@@ -150,7 +158,7 @@ void kStepArnoldi(Matrix* mat, Matrix* Q, Matrix* H, Vector* f, int k, int p) {
         Vector w;
         initVec(&w, mat->rows);
         matVecDot(mat, &qj, &w);
-        
+
         Matrix qT;
         initTranspose(Q, &qT);
         shrinkMat(&qT, qT.rows-1, qT.cols);
@@ -195,6 +203,15 @@ void kStepArnoldi(Matrix* mat, Matrix* Q, Matrix* H, Vector* f, int k, int p) {
 }
 
 // double-shift Hessenberg QR algorithm
+// overwrites H
+//
+// PARAMETERS:
+// -- Matrix H: Hessenberg matrix (becomes overwritten)
+//
+// RETURNS:
+// -- 0: successful convergence
+// -- 1: failed convergence
+//
 // see Algorithm 4.5 of:
 // https://people.inf.ethz.ch/arbenz/ewp/Lnotes/chapter4.pdf
 int qrHess(Matrix* H) {
@@ -209,19 +226,10 @@ int qrHess(Matrix* H) {
         double x = pow(H->array[0][0], 2) + H->array[0][1]*H->array[1][0] - s*H->array[0][0] + t;
         double y = H->array[1][0] * (H->array[0][0] + H->array[1][1] - s);
         double z = H->array[1][0] * H->array[2][1];
-        if (y < TOL && z < TOL) {
-            printf("y and z < TOL\n");
-            break;
-        }
-        if (s < TOL || t < TOL) {
-            printf("s or t < TOL\n");
-            break;
-        }
 
         Vector u;
 
         for (int i = -1; i < p-2; i++) {    
-            //printMat(H);
             // determine Householder reflector 
             // represented only by vector u
             initVec(&u, 3);
@@ -229,17 +237,19 @@ int qrHess(Matrix* H) {
             double uMag = sqrt(x*x + y*y + z*z);
             double xTemp = x - rho*uMag;
             double d = sqrt(xTemp*xTemp + y*y + z*z);
-            if (isnan(d)) break;
 
-            if (d > 1000) {
-                printf("-- QR FAILED: DIVERGING\n");
-                return 1;
+            // if d is zero, move on
+            if (d < TOL) {
+                p--;
+                break;
             }
+            assert(!isnan(d));
 
-            u.array[0] = (x - rho*uMag) / d;
+            u.array[0] = xTemp / d;
             u.array[1] = y / d;
             u.array[2] = z / d;
 
+            // apply Householder from the left
             int r = max(0, i);
             for (int k = r; k < H->cols; k++) {
                 double a = H->array[i+1][k];
@@ -257,6 +267,7 @@ int qrHess(Matrix* H) {
                 H->array[i+3][k] = c - cTemp;
             }
 
+            // apply Householder from the right
             r = min(i+4, p);
             for (int l = 0; l < r+1; l++) {
                 double a = H->array[l][i+1];
@@ -275,20 +286,23 @@ int qrHess(Matrix* H) {
             }
             
             cleanVec(&u);
-
+    
+            // update x and y (and maybe z)
             x = H->array[i+2][i+1];
             y = H->array[i+3][i+1];
-            if (i < p-3)
+            if (i < p-3) {
                 z = H->array[i+4][i+1];
+            }
         }
 
+        // Givens rotation in the form of Householder vector u
         initVec(&u, 2);
         double uMag = sqrt(x*x + y*y);
         int rho = -1*sgn(x);
         double xTemp = x - rho*uMag;
         double d = sqrt(xTemp*xTemp + y*y);
+        assert(!isnan(d) && d > 0);
         u.array[0] = (x - rho*uMag) / d;
-        assert(!isnan(u.array[0]));
         u.array[1] = y / d;
 
         // Givens rotation P from the left
@@ -305,6 +319,7 @@ int qrHess(Matrix* H) {
             H->array[p][k] = b - bTemp;
         }
 
+        // Givens rotation P from the right
         for (int j = 0 ; j < p+1; j++) {
             double a = H->array[j][p-1];
             double b = H->array[j][p];
@@ -317,12 +332,13 @@ int qrHess(Matrix* H) {
             H->array[j][p-1] = a - aTemp;
             H->array[j][p] = b - bTemp;
         }
-        
+
+        // convergence checks
         if (isnan(H->array[p][q])) {
             printf("-- QR FAILED: NAN\n");
             return 1;
         }
-        
+
         if (fabs(H->array[p][q]) < TOL*(fabs(H->array[q][q]) + fabs(H->array[p][p]))) {
             H->array[p][q] = 0;
             p--;
@@ -354,13 +370,18 @@ double specHess(Matrix* H) {
         double c = w*z - y*x;
 
         double root = b*b - 4*a*c;
-        double eigP = (b + sqrt(root))/(2*a);
-        double eigN = (b - sqrt(root))/(2*a);
-        if (root > 0) {
-            if (fabs(eigP) > fabs(spec))
+        if (root > TOL) {
+            double eigP = (b + sqrt(root))/(2*a);
+            double eigN = (b - sqrt(root))/(2*a);
+            
+            if (fabs(eigP) > fabs(spec)) {
+                printf("Candidate 1: %.15lf\n", eigP);
                 spec = eigP;
-            if (fabs(eigN) > fabs(spec))
+            }
+            if (fabs(eigN) > fabs(spec)) {
+                printf("Candidate 2: %.15lf\n", eigN);
                 spec = eigN;
+            }
         }
     }
 
@@ -388,12 +409,6 @@ double spectralRadius(Sparse* sparse) {
 
     return spec;
 }
-
-// Implicitly Restarted Arnoldi (IRA)
-// see: http://people.inf.ethz.ch/arbenz/ewp/Lnotes/chapter11.pdf
-// TODO: make
-// TODO: generalize (don't use only spectral radius)
-void implicitArnoldiSparse(Sparse* sparse) {}
 
 //--------------------------------------------------------\\
 // Matrix Inverse                                         \\

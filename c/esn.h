@@ -2,7 +2,7 @@
 #define ESNFILE
 #include <stdlib.h>
 #include <stdio.h>
-#include "map.h"
+#include "sparse.h"
 #include "matrix.h"
 #include "linalg.h"
 #include "generation.h"
@@ -106,8 +106,8 @@ void initWeights(Weights* weights, int inputs, int resSize, int outputs, int bat
     initIdent(weights->outputs, outputs, resSize + inputs);
     printf("Outputs initialized.\n");
 
-    initRandom(weights->feedback, resSize, outputs);
-    scalarMatMult(weights->feedback, 2.);
+    initRandomNormal(weights->feedback, resSize, outputs);
+    //scalarMatMult(weights->feedback, 2.);
     printf("Feedback initialized.\n");
 }
 

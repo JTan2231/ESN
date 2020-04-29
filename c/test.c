@@ -3,7 +3,7 @@
 #include <time.h>
 #include <string.h>
 #include "matrix.h"
-#include "map.h"
+#include "sparse.h"
 #include "generation.h"
 #include "linalg.h"
 #include "esn.h"
@@ -66,7 +66,7 @@ int main() {
     int resSize = 20;
     int outputs = 1;
     int batchSize = 500;
-    int washout = 10;
+    int washout = 50;
     double alpha = 0.75;
 
     //net.weights = malloc(sizeof(*(net.weights)));

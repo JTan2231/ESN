@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "matrix.h"
-#include "map.h"
+#include "sparse.h"
 
 #define TOL 0.0000000000009
 

@@ -15,21 +15,13 @@
 // TODO: Function testing
 // TODO: Expected outputs from given inputs
 
-void printHeader(char header[]) {
-    printf("-----------------\n%s\n-----------------\n", header);
-}
-
-void printSubHeader(char subHeader[]) {
-    printf("\n>>> %s\n\n", subHeader);
-}
-
 int main() {
     srand(time(0));
 
     ESN net;
 
     int inputs = 0;
-    int resSize = 20;
+    int resSize = 10;
     int outputs = 1;
     int batchSize = 500;
     int washout = 50;

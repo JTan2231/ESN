@@ -1,9 +1,3 @@
-/*
- * Author: Joey Tan
- * Date Created: 2-19-20
- * Last Edit: 2-23-20, Joey Tan
- */
-
 #ifndef GENERATION
 #define GENERATION
 #include <stdlib.h>

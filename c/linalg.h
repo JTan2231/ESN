@@ -22,6 +22,43 @@
 // Basic Vector Operations                                \\
 //--------------------------------------------------------\\
 
+void normalize(Vector* vec, double magnitude);
+void normalizeOut(Vector* vec, Vector* output, double magnitude);
+double magnitude(Vector* vec);
+
+//--------------------------------------------------------\\
+// Miscellaneous Math Operations                          \\
+//--------------------------------------------------------\\
+
+// returns the sign (-1, 0, 1) of x
+int sgn(double x);
+int max(int a, int b);
+int min(int a, int b);
+
+//--------------------------------------------------------\\
+// Eigenvalues                                            \\
+//--------------------------------------------------------\\
+
+// computes QR Factorization of matrix mat, with output in matrices Q and R
+int qrHess(Matrix* H);
+
+// expands Arnoldi factorization from size k to size k+p
+// if k == 0 (i.e. initial factorization), f should be a random vector
+void kStepArnoldi(Matrix* mat, Matrix* Q, Matrix* H, Vector* f, int k, int p);
+double specHess(Matrix* H);
+double spectralRadius(Sparse* sparse);
+
+//--------------------------------------------------------\\
+// Matrix Inverse                                         \\
+//--------------------------------------------------------\\
+
+void crout(Matrix* mat, Matrix* lower, Matrix* upper);
+void inverse(Matrix* mat, Matrix* inverse);
+
+//--------------------------------------------------------\\
+// Function Definitions                                   \\
+//--------------------------------------------------------\\
+
 // normalizes the given vector
 void normalize(Vector* vec, double magnitude) {
     for (int i = 0; i < vec->size; i++)
@@ -74,14 +111,10 @@ int min(int a, int b) {
     return b;
 }
 
-//--------------------------------------------------------\\
-// Eigenvectors and Eigenvalues                           \\
-//--------------------------------------------------------\\
-
 // performs QR factorization using the Modified Gram-Schmidt
 // NOTE: mat is overwritten here
 // see Matrix Computation, page 232 - Golub, Van Loan (1996)
-int qrFact(Matrix* mat, Matrix* Q, Matrix* R) {
+/*int qrFact(Matrix* mat, Matrix* Q, Matrix* R) {
     assert(mat->rows == Q->rows);
     assert(mat->cols == Q->cols);
     assert(mat->cols == R->cols);
@@ -109,7 +142,7 @@ int qrFact(Matrix* mat, Matrix* Q, Matrix* R) {
             cleanVec(&a);
         }
     }
-}
+}*/
 
 // dimensions:
 // -- mat = (n, n)
@@ -409,10 +442,6 @@ double spectralRadius(Sparse* sparse) {
 
     return spec;
 }
-
-//--------------------------------------------------------\\
-// Matrix Inverse                                         \\
-//--------------------------------------------------------\\
 
 // computes LU decomposition
 // of given matrix (Crout style)

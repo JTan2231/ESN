@@ -414,11 +414,6 @@ void train(ESN* esn) {
 
 // no input
 double test(ESN* esn) {
-    /*for (int i = 0; i < esn->states->currentTeacher->rows; i++) {
-        for (int j = 0; j < esn->states->currentTeacher->cols; j++)
-            esn->states->output->array[i][j] = esn->states->currentTeacher->array[i][j];
-    }*/
-
     FILE* net;
     FILE* teacher;
     net = fopen("testData.txt", "w");
@@ -436,8 +431,6 @@ double test(ESN* esn) {
         sum += pow((desired(i) - esn->states->output->array[0][0]), 2);
         fprintf(net, "%d %.15lf %.15lf\n", i, desired(i), esn->states->output->array[0][0]);
         fprintf(teacher, "%d %.15lf\n", i, desired(i));
-        //printf("Current state:\n");
-        //printMat(esn->states->currentState);
         updateStateNoInput(esn, STEIL, 0);
     }
 

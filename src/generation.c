@@ -1,7 +1,6 @@
-#ifndef GENERATION
-#define GENERATION
 #include <stdlib.h>
 #include <math.h>
+#include <generation.h>
 
 const double PI = 3.14159;
 const double RAND_UPPER = 1;
@@ -69,5 +68,3 @@ double marsagliaPolar() {
 
     return U * sqrtf(-2*logf(S)/S);
 }
-
-#endif

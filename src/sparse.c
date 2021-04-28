@@ -1,44 +1,18 @@
-#ifndef MAP
-#define MAP
 #include <stdio.h>
+#include <stdlib.h>
 
-// TODO: Renaming sparse matrix representation
-// These three structs compose the sparse matrix representation
-
-// The given row and associated value
-typedef struct {
+typedef struct PairTag {
     int first;
     double second;
 } Pair;
 
-// A column with its filled-in rows
-// Column.array is a dynamic array
-// with key-value entries (row-value)
-// added as the matrix is constructed
-//
-// rows for which there is no key (e.g. row[i])
-// are interpreted as being zero
-// at point (row[i], Column.value)
-typedef struct {
+typedef struct ColumnTag {
     Pair* array;
     int value;
     int arraySize;
 } Column;
 
-// Sparse matrix representation
-//
-// Memory is only used on matrix info
-// and points at which there is a
-// non-zero number
-//
-// Contains an array of columns
-// in which are key-value pairs
-// indicating where the non-zero
-// values are (i.e. which row
-//                  in that column)
-//
-// density == (# of non-zero values) / (rows * cols)
-typedef struct {
+typedef struct SparseTag {
     Column* array;
     int arraySize;
     int cols;
@@ -46,20 +20,12 @@ typedef struct {
     double density;
 } Sparse;
 
-//------------------------------------\\
-// Initialization                     \\
-//------------------------------------\\
-
 void initColumn(Column* p, int value) {
     p->array = malloc(sizeof p->array);
     p->array[0].first = -1;
     p->value = value;
     p->arraySize = 0;
 }
-
-//------------------------------------\\
-// Cleanup                            \\
-//------------------------------------\\
 
 void cleanColumn(Column* p) {
     free(p->array);
@@ -72,10 +38,6 @@ void cleanSparse(Sparse* pa) {
     free(pa->array);
     pa->arraySize = 0;
 }
-
-//------------------------------------\\
-// Mutation                           \\
-//------------------------------------\\
 
 // These two ensure that added values to the arrays
 // are in an ascending sort order
@@ -149,10 +111,6 @@ void sparseAdd(Sparse* pa, Column* p) {
     }
 }
 
-//------------------------------------\\
-// I/O                                \\
-//------------------------------------\\
-
 void columnPrint(Column* p) {
     printf("{ Column: %d }\n", p->value);
     for (int i = 0; i < p->arraySize; i++)
@@ -204,5 +162,3 @@ int columnIn(Column* p, int first, int second) {
         output = i;
     return output;
 }
-
-#endif

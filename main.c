@@ -2,18 +2,11 @@
 #include <stdio.h>
 #include <time.h>
 #include <string.h>
-#include "matrix.h"
-#include "sparse.h"
-#include "generation.h"
-#include "linalg.h"
-#include "esn.h"
-
-// rudimentary test file
-// to make sure everything works as expected
-// unfinished
-
-// TODO: Function testing
-// TODO: Expected outputs from given inputs
+#include <matrix.h>
+#include <sparse.h>
+#include <generation.h>
+#include <linalg.h>
+#include <esn.h>
 
 int main() {
     srand(time(0));

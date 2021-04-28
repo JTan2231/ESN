@@ -2,10 +2,10 @@
 #define ESNFILE
 #include <stdlib.h>
 #include <stdio.h>
-#include "sparse.h"
-#include "matrix.h"
-#include "linalg.h"
-#include "generation.h"
+#include <sparse.h>
+#include <matrix.h>
+#include <linalg.h>
+#include <generation.h>
 
 #define SPECMIN 0.001
 #define GNUPLOT "gnuplot -persist"
@@ -19,8 +19,6 @@
 // - 40 reservoir units                       \\
 // - 1 output unit                            \\
 //--------------------------------------------\\
-
-// TODO: Extended system states; accommodate inputs
 
 typedef struct {
     Matrix* inputs;
@@ -55,7 +53,7 @@ typedef struct {
     Weights* weights;
 } ESN;
 
-enum stateUpdateVersion {DEFAULT, STEIL};
+enum stateUpdateVersion { DEFAULT, STEIL };
 
 int dampening(ESN* esn);
 void cleanWeights(Weights* weights, int inputs);

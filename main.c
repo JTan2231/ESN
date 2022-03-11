@@ -14,11 +14,11 @@ int main() {
     ESN net;
 
     int inputs = 0;
-    int resSize = 10;
+    int resSize = 20;
     int outputs = 1;
-    int batchSize = 500;
-    int washout = 50;
-    double alpha = 0.75;
+    int batchSize = 300;
+    int washout = 100;
+    double alpha = 20.;
 
     initNet(&net, inputs, resSize, outputs, batchSize, alpha, washout);
     train(&net);

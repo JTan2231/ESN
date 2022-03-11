@@ -243,7 +243,7 @@ void inverseSigmoid(Matrix* mat) {
 // for a sin wave generator
 double desired(int t) {
     //return sin(3.14*t/8);
-    return 0.5*sin(3.14*t/64.);
+    return 0.5*sin(t/4.);
 }
 
 // adds a random noise term to each item in the matrix
@@ -482,8 +482,8 @@ int dampening(ESN* esn) {
     fclose(net);
 
     double previous = esn->states->output->array[0][0];
-    double convergenceTol = 0.00000000001;
-    for (int i = 0; i < 50; i++) {
+    double convergenceTol = 0.5;
+    for (int i = 0; i < 10; i++) {
         updateOutput(esn);
         if (fabs(esn->states->output->array[0][0] - previous) < convergenceTol
          && fabs(esn->states->output->array[0][0]) < convergenceTol)
